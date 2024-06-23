@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
@@ -46,18 +47,41 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
+  Future<void> _addPlayerToServer(String userID) async {
+    print("adding player to server");
+    DocumentReference gameRef = FirebaseFirestore.instance
+        .collection('games')
+        .doc('myL0usrEjWVDrwUM9nus');
+
+    await gameRef.update({'players.$userID': 0});
+  }
+
+  Future<void> _removePlayerFromServer(MyPlayer playerInstance) async {
+    print("removing player from server");
+    DocumentReference gameRef = FirebaseFirestore.instance
+        .collection('games')
+        .doc('myL0usrEjWVDrwUM9nus');
+
+    String playerId = playerInstance.user_id;
+
+    await gameRef.update({'players.$playerId': FieldValue.delete()});
+  }
+
   Future<void> addLocalPlayer() async {
     localUserID = await getLocalUserID();
 
     playerList.value.add(MyPlayer(localUserID));
+    _addPlayerToServer(localUserID);
   }
 
   void addHeadlessPlayer(String id) {
     playerList.value.add(MyPlayer(id));
+    _addPlayerToServer(id);
   }
 
   void addRemotePlayer(String incomingID) {
     playerList.value.add(MyPlayer(incomingID));
+    _addPlayerToServer(incomingID);
   }
 
   void resetLobby() {
@@ -78,6 +102,7 @@ class _LobbyPageState extends State<LobbyPage> {
     String display_name = playerInstance.display_name;
 
     playerList.value.remove(playerInstance);
+    _removePlayerFromServer(playerInstance);
 
     print("🔴 Removed player $display_name from lobby.");
 

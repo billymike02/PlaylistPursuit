@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
 import 'pages/login.dart';
 import 'styles.dart';
-import 'package:logger/logger.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(
+    Provider.value(
+      value: FirebaseFirestore.instance,
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

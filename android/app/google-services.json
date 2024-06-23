@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1008998508424",
-    "project_id": "playlist-pursuit",
-    "storage_bucket": "playlist-pursuit.appspot.com"
+    "project_number": "106034905904",
+    "project_id": "playlist-pursuit-efbb3",
+    "storage_bucket": "playlist-pursuit-efbb3.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1008998508424:android:b027cebfd84531627cfc3d",
+        "mobilesdk_app_id": "1:106034905904:android:7cab0db8c90d062162bef5",
         "android_client_info": {
           "package_name": "com.playlistpursuit"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBEc4m-5IasZTRbTn0zZD8b6SHmFwFMWYw"
+          "current_key": "AIzaSyCtdbBm_m3yPvSbmKkt0qXsH0zpiWxmilk"
         }
       ],
       "services": {

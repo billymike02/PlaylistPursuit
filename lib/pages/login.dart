@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:oauth2_client/access_token_response.dart';
 import 'package:queue_quandry/styles.dart';
@@ -7,12 +9,19 @@ import '../credentials.dart';
 import 'lobby.dart';
 import 'package:oauth2_client/spotify_oauth2_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase_options.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 const scope = 'user-read-private user-read-email';
 
 String? myToken;
 String? myRefreshToken;
 DateTime? tokenExpiration;
+
+Future<void> firebaseLogin() async {
+  print("Firebase Login function called!");
+
+}
 
 Future<void> ensureTokenIsValid() async {
   if (myToken == null ||
@@ -89,6 +98,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   String loginMessage = 'Connect to Spotify';
   String debugMessage = 'DEBUG';
+
+  @override
+  void initState() {
+    super.initState();
+
+    firebaseLogin();
+  }
 
   @override
   Widget build(BuildContext context) {
