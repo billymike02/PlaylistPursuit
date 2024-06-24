@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
+import 'package:spotify_sdk/models/player_options.dart';
 import 'game.dart';
 import 'dart:async';
 import 'package:share_plus/share_plus.dart';
@@ -20,6 +21,7 @@ ValueNotifier<int> songsAdded = ValueNotifier<int>(0);
 List<String> playbackQueue = [];
 
 String localUserID = "DefaultUser";
+bool bIsHost = true;
 
 String gameID = "";
 
@@ -32,6 +34,28 @@ Future<String> getLocalUserID() async {
   );
 
   return json.decode(response.body)['id'];
+}
+
+/// Returns true if the local client is hosting the lobby.
+Future<bool> isServer() async {
+  DocumentSnapshot gameSnapshot =
+      await FirebaseFirestore.instance.collection('games').doc(gameID).get();
+
+  if (gameSnapshot.exists) {
+    Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
+    // Access fields from gameData
+    String gameHost = gameData['host'];
+
+    print('Game Host: $gameHost');
+
+    if (gameHost == localUserID) {
+      return true;
+    }
+  } else {
+    print('Document does not exist');
+  }
+
+  return false;
 }
 
 class LobbyPage extends StatefulWidget {
@@ -75,7 +99,9 @@ class _LobbyPageState extends State<LobbyPage> {
       await newGameRef.set({
         'players': {},
         'created_at': FieldValue.serverTimestamp(),
-        // Add any other initial game data here
+        'queued_tracks': {},
+        'started': false,
+        'host': localUserID
       });
 
       gameID = newGameRef.id;
@@ -407,11 +433,11 @@ class _LobbyPageState extends State<LobbyPage> {
       DocumentSnapshot gameDoc = await gameRef.get();
 
       if (gameDoc.exists) {
-        // // Add the new player to the game
-        // String playerName = "NewPlayer"; // Replace with actual player name
-        // int score = 0;
+        // Add the new player to the game
+        String playerName = "NewPlayer"; // Replace with actual player name
+        int score = 0;
 
-        // await gameRef.update({'players.$playerName': score});
+        await gameRef.update({'players.$playerName': score});
 
         print('Found game with ID: $gameId');
       } else {
@@ -702,6 +728,13 @@ class _QueuePageState extends State<QueuePage> {
                           onPressed: () async {
                             playbackQueue = [...songQueue];
 
+                            // update
+                            DocumentReference gameRef = FirebaseFirestore
+                                .instance
+                                .collection('games')
+                                .doc(gameID);
+                            await gameRef.update({'started': true});
+
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -939,19 +972,29 @@ class PlayerListing extends StatefulWidget {
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
 
+  Future<void> _setKicking() async {
+    if (widget.playerInstance.user_id == localUserID) {
+      bool server = await isServer();
+
+      setState(() {
+        if (!server) {
+          enableKicking = true;
+        } else {
+          enableKicking = false;
+        }
+      });
+    } else {
+      setState(() {
+        enableKicking = true;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
-    bool isRemote = (localUserID != widget.playerInstance.user_id);
-
-    setState(() {
-      if (isRemote) {
-        enableKicking = true;
-      } else {
-        enableKicking = false;
-      }
-    });
+    _setKicking();
   }
 
   @override
