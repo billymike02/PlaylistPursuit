@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:spotify_sdk/spotify_sdk.dart';
+import 'multiplayer.dart';
 
 class Track {
   final String track_id;
@@ -127,6 +128,17 @@ Future<void> addToQueue(String? trackUri, String? accessToken) async {
     print(
         'Failed to add track to queue: ${response.statusCode}, ${response.body}');
   }
+}
+
+Future<String> getLocalUserID() async {
+  final response = await http.get(
+    Uri.parse('https://api.spotify.com/v1/me'),
+    headers: {
+      'Authorization': 'Bearer $myToken',
+    },
+  );
+
+  return json.decode(response.body)['id'];
 }
 
 Future<void> skipTrack() async {
@@ -311,7 +323,7 @@ Future<void> cleanSpotifyQueue() async {
 
 Future<void> createPlaylist(String playlistName) async {
   final response = await http.post(
-    Uri.parse('https://api.spotify.com/v1/users/$localUserID/playlists'),
+    Uri.parse('https://api.spotify.com/v1/users/$local_client_id/playlists'),
     headers: {
       'Authorization': 'Bearer $myToken',
       'Content-Type': 'application/json',

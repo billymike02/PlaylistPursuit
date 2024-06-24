@@ -18,11 +18,6 @@ String? myToken;
 String? myRefreshToken;
 DateTime? tokenExpiration;
 
-Future<void> firebaseLogin() async {
-  print("Firebase Login function called!");
-
-}
-
 Future<void> ensureTokenIsValid() async {
   if (myToken == null ||
       tokenExpiration == null ||
@@ -102,8 +97,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-
-    firebaseLogin();
   }
 
   @override
@@ -143,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => LobbyPage(
-                                    reset: true,
+                                    init: true,
                                   ),
                                 ),
                               ), onError: (error) {

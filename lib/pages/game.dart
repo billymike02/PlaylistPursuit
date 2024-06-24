@@ -8,6 +8,7 @@ import 'lobby.dart';
 import 'package:queue_quandry/styles.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'dart:convert';
+import 'package:queue_quandry/multiplayer.dart';
 
 final int winningScore = 10;
 bool musicPlaying = true;
@@ -70,7 +71,7 @@ class _GuessingPageState extends State<GuessingPage> {
         buttonsPressed.toString());
 
     for (int i = 0; i < playerList.value.length; i++) {
-      if (playerList.value[i].user_id == localUserID && correctGuess) {
+      if (playerList.value[i].user_id == local_client_id && correctGuess) {
         // Retrieve the current value and add 10 to it
 
         playerList.value[i].score += 10;
@@ -197,7 +198,8 @@ class _GuessingPageState extends State<GuessingPage> {
                       shrinkWrap: true,
                       itemCount: playerList.value.length,
                       itemBuilder: (context, index) {
-                        if (localUserID == playerList.value[index].user_id) {
+                        if (local_client_id ==
+                            playerList.value[index].user_id) {
                           return Container();
                         }
                         return Container(
@@ -456,7 +458,7 @@ class _ResultPageState extends State<ResultPage> {
                   width: MediaQuery.of(context).size.width * 0.75,
                   height: MediaQuery.of(context).size.height * 0.06,
                   decoration: BoxDecoration(
-                    color: playerList.value[i].user_id == localUserID
+                    color: playerList.value[i].user_id == local_client_id
                         ? myBoxColor
                         : boxColor,
                     borderRadius: BorderRadius.circular(8),
@@ -582,7 +584,7 @@ class _FinishPageState extends State<FinishPage> {
                   width: MediaQuery.of(context).size.width * 0.75,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: playerList.value[i].user_id == localUserID
+                    color: playerList.value[i].user_id == local_client_id
                         ? myBoxColor
                         : boxColor,
                     borderRadius: BorderRadius.circular(8),
@@ -733,7 +735,7 @@ class _EndPageState extends State<EndPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => LobbyPage(
-                        reset: true,
+                        init: false,
                       ),
                     ),
                   );

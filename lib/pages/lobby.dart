@@ -12,60 +12,24 @@ import 'dart:convert';
 import '../spotify-api.dart';
 import '../main.dart';
 import 'package:logger/logger.dart';
+import 'package:queue_quandry/multiplayer.dart';
 
-ValueNotifier<List<MyPlayer>> playerList = ValueNotifier<List<MyPlayer>>([]);
 List<String> songQueue = [];
 
 int songsPerPlayer = 3;
 ValueNotifier<int> songsAdded = ValueNotifier<int>(0);
 List<String> playbackQueue = [];
 
-String localUserID = "DefaultUser";
-bool bIsHost = true;
-
-String gameID = "";
-
-Future<String> getLocalUserID() async {
-  final response = await http.get(
-    Uri.parse('https://api.spotify.com/v1/me'),
-    headers: {
-      'Authorization': 'Bearer $myToken',
-    },
-  );
-
-  return json.decode(response.body)['id'];
-}
-
-/// Returns true if the local client is hosting the lobby.
-Future<bool> isServer() async {
-  DocumentSnapshot gameSnapshot =
-      await FirebaseFirestore.instance.collection('games').doc(gameID).get();
-
-  if (gameSnapshot.exists) {
-    Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
-    // Access fields from gameData
-    String gameHost = gameData['host'];
-
-    print('Game Host: $gameHost');
-
-    if (gameHost == localUserID) {
-      return true;
-    }
-  } else {
-    print('Document does not exist');
-  }
-
-  return false;
-}
-
 class LobbyPage extends StatefulWidget {
   final int songsPerPlayer;
-  final bool reset;
+  final bool init;
+  String gameCode;
 
-  const LobbyPage({
+  LobbyPage({
     Key? key,
+    required this.init,
+    this.gameCode = "",
     this.songsPerPlayer = 1,
-    required this.reset,
   }) : super(key: key);
 
   @override
@@ -75,128 +39,34 @@ class LobbyPage extends StatefulWidget {
 class _LobbyPageState extends State<LobbyPage> {
   TextEditingController _textController = TextEditingController();
   String _inputText = '';
-
-  String generateGameCode() {
-    // Generate a custom ID here (e.g., using a random string or numeric ID)
-    String gameId = 'game_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Trim to the last 4 characters
-    if (gameId.length > 4) {
-      gameId = gameId.substring(gameId.length - 4);
-    }
-
-    return gameId;
-  }
-
-  Future<void> createNewGame() async {
-    try {
-      CollectionReference gamesRef =
-          FirebaseFirestore.instance.collection('games');
-
-// Create a new game document with custom ID and initial data
-      DocumentReference newGameRef = gamesRef.doc(generateGameCode());
-
-      await newGameRef.set({
-        'players': {},
-        'created_at': FieldValue.serverTimestamp(),
-        'queued_tracks': {},
-        'started': false,
-        'host': localUserID
-      });
-
-      gameID = newGameRef.id;
-      print('New game created with ID: ${gameID}');
-    } catch (e) {
-      print('Error creating new game: $e');
-    }
-  }
-
-  Future<void> _addPlayerToServer(String userID) async {
-    print("adding player to server");
-    DocumentReference gameRef =
-        FirebaseFirestore.instance.collection('games').doc(gameID);
-
-    await gameRef.update({'players.$userID': 0});
-
-    if (userID == localUserID) {
-      print("saving server host");
-      await gameRef.update({'host': localUserID});
-    }
-  }
-
-  Future<void> _removePlayerFromServer(MyPlayer playerInstance) async {
-    print("removing player from server");
-    DocumentReference gameRef =
-        FirebaseFirestore.instance.collection('games').doc(gameID);
-
-    String playerId = playerInstance.user_id;
-
-    await gameRef.update({'players.$playerId': FieldValue.delete()});
-  }
-
-  Future<void> addLocalPlayer() async {
-    localUserID = await getLocalUserID();
-
-    playerList.value.add(MyPlayer(localUserID));
-    _addPlayerToServer(localUserID);
-  }
-
-  void addHeadlessPlayer(String id) {
-    playerList.value.add(MyPlayer(id));
-    _addPlayerToServer(id);
-  }
-
-  void addRemotePlayer(String incomingID) {
-    playerList.value.add(MyPlayer(incomingID));
-    _addPlayerToServer(incomingID);
-  }
-
-  void resetLobby() {
-    playerList.value.clear();
-  }
+  bool bIsHost = false;
 
   @override
   void initState() {
     super.initState();
 
-    // reset the lobby
-    if (widget.reset) resetLobby();
-
-    createNewGame();
-    _initAllPlayers();
+    // Execute default local behavior
+    if (widget.init == true) {
+      // Clear the player list
+      bIsHost = true;
+      playerList.value.clear();
+      initLobby();
+    }
+    // Execute remote behavior
+    else if (widget.gameCode != "") {
+      print("loading a lobby...");
+    }
   }
 
   void removePlayer(MyPlayer playerInstance) {
     String display_name = playerInstance.display_name;
 
     playerList.value.remove(playerInstance);
-    _removePlayerFromServer(playerInstance);
+    removePlayerFromServer(playerInstance);
 
     print("🔴 Removed player $display_name from lobby.");
 
     playerList.notifyListeners();
-  }
-
-  Future<void> _initAllPlayers() async {
-    print("init all players");
-
-    // populate the lobby
-    await addLocalPlayer();
-    addHeadlessPlayer('abrawolf');
-    addHeadlessPlayer('tommyryan2002');
-    addHeadlessPlayer('nickwaizenegger');
-
-    await Future.forEach(playerList.value, (MyPlayer instance) async {
-      if (!instance.isInitialized) {
-        await instance.initPlayer();
-        String display_name = instance.display_name;
-        print("🟢 Player $display_name joined lobby.");
-
-        playerList.notifyListeners();
-      }
-    });
-
-    setState(() {});
   }
 
   Widget _createAllPlayerListings() {
@@ -382,7 +252,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       },
                     ),
                   ),
-                  if (playerList.value.length > 1)
+                  if (playerList.value.length > 1 && bIsHost)
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -393,6 +263,7 @@ class _LobbyPageState extends State<LobbyPage> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => QueuePage(
+                                    gameCode: widget.gameCode,
                                     songsPerPlayer: songsPerPlayer,
                                   ),
                                 ),
@@ -425,27 +296,45 @@ class _LobbyPageState extends State<LobbyPage> {
     );
   }
 
-  Future<void> _joinGame(String gameId) async {
-    try {
-      DocumentReference gameRef =
-          FirebaseFirestore.instance.collection('games').doc(gameId);
+  Future<void> _attemptJoinGame(String code) async {
+    int result = await joinGame(code);
 
-      DocumentSnapshot gameDoc = await gameRef.get();
+    // If the connection fails, inform the user.
+    if (result != 0) {
+      showCupertinoDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CupertinoAlertDialog(
+            title: Text("Unable to Connect to Lobby"),
+            content: Text("\"$code\" is an invalid game code."),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                child: Text("OK", style: TextStyle(color: Colors.redAccent)),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
 
-      if (gameDoc.exists) {
-        // Add the new player to the game
-        String playerName = "NewPlayer"; // Replace with actual player name
-        int score = 0;
-
-        await gameRef.update({'players.$playerName': score});
-
-        print('Found game with ID: $gameId');
-      } else {
-        print('Game not found with ID: $gameId');
-      }
-    } catch (e) {
-      print('Error joining game: $e');
+      return;
     }
+
+    _joinLobby(code);
+  }
+
+  void _joinLobby(String code) {
+    // Navigate to the new lobby page
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LobbyPage(
+            gameCode: code,
+            init: false,
+          ),
+        ));
   }
 
   void _showTextFieldDialog(BuildContext context) {
@@ -466,7 +355,7 @@ class _LobbyPageState extends State<LobbyPage> {
                   _inputText = _textController.text;
                   _textController.clear();
 
-                  _joinGame(_inputText);
+                  _attemptJoinGame(_inputText);
                 });
                 Navigator.of(context).pop();
               },
@@ -479,7 +368,7 @@ class _LobbyPageState extends State<LobbyPage> {
 
   void _share() async {
     final result = await Share.share(
-        'Here\'s my game code for Playlist Pursuit: $gameID',
+        'Here\'s my game code for Playlist Pursuit: ${widget.gameCode}',
         subject: "Invite to Game");
   }
 }
@@ -524,8 +413,11 @@ DropdownButtonFormField<int> _buildDropdown(
 
 class QueuePage extends StatefulWidget {
   final int songsPerPlayer;
+  final String gameCode;
 
-  const QueuePage({Key? key, required this.songsPerPlayer}) : super(key: key);
+  const QueuePage(
+      {Key? key, required this.songsPerPlayer, required this.gameCode})
+      : super(key: key);
 
   @override
   _QueuePageState createState() => _QueuePageState();
@@ -662,6 +554,7 @@ class _QueuePageState extends State<QueuePage> {
                                   return Padding(
                                     padding: EdgeInsets.only(bottom: 8),
                                     child: SongListing(
+                                      gameCode: widget.gameCode,
                                       track: Track(snapshot.data![index]),
                                       onIncrement: incrementSongsAdded,
                                       onDecrement: decrementSongsAdded,
@@ -697,6 +590,7 @@ class _QueuePageState extends State<QueuePage> {
                                 return Padding(
                                   padding: EdgeInsets.only(bottom: 8),
                                   child: SongListing(
+                                    gameCode: widget.gameCode,
                                     track: Track(snapshot.data![index]),
                                     onIncrement: incrementSongsAdded,
                                     onDecrement: decrementSongsAdded,
@@ -732,7 +626,7 @@ class _QueuePageState extends State<QueuePage> {
                             DocumentReference gameRef = FirebaseFirestore
                                 .instance
                                 .collection('games')
-                                .doc(gameID);
+                                .doc(widget.gameCode);
                             await gameRef.update({'started': true});
 
                             Navigator.push(
@@ -794,9 +688,11 @@ class SongListing extends StatefulWidget {
   final Track track;
   final Function()? onIncrement;
   final Function()? onDecrement;
+  final String gameCode;
 
   SongListing({
     required this.track,
+    required this.gameCode,
     this.onIncrement,
     this.onDecrement,
   });
@@ -819,15 +715,15 @@ class _SongListingState extends State<SongListing> {
 
   Future<void> _firestoreAddSong() async {
     DocumentReference gameRef =
-        FirebaseFirestore.instance.collection('games').doc(gameID);
+        FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
     await gameRef
-        .update({'queued_tracks.${widget.track.track_id}': localUserID});
+        .update({'queued_tracks.${widget.track.track_id}': local_client_id});
   }
 
   Future<void> _firestoreRemoveSong() async {
     DocumentReference gameRef =
-        FirebaseFirestore.instance.collection('games').doc(gameID);
+        FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
     await gameRef.update(
         {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
@@ -971,23 +867,22 @@ class PlayerListing extends StatefulWidget {
 
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
+  bool bIsHost = false;
 
+  /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
-    if (widget.playerInstance.user_id == localUserID) {
-      bool server = await isServer();
-
-      setState(() {
-        if (!server) {
-          enableKicking = true;
-        } else {
-          enableKicking = false;
-        }
-      });
-    } else {
-      setState(() {
-        enableKicking = true;
-      });
+    if (widget.playerInstance.user_id != local_client_id &&
+        await isHost(local_client_id)) {
+      enableKicking = true;
     }
+
+    if (await isHost(widget.playerInstance.user_id)) {
+      bIsHost = true;
+
+      print("HOST!");
+    }
+
+    setState(() {});
   }
 
   @override
@@ -1027,6 +922,24 @@ class _PlayerListingState extends State<PlayerListing> {
               ),
             ),
           ),
+
+          bIsHost
+              ? GestureDetector(
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.transparent,
+                    ),
+                    child: Icon(
+                      Icons.phone_iphone_rounded,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                )
+              : SizedBox.shrink(),
 
           // Enable the kicking option if it's allowed for the player
 
