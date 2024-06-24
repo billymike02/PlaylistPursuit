@@ -21,6 +21,8 @@ List<String> playbackQueue = [];
 
 String localUserID = "DefaultUser";
 
+String gameID = "";
+
 Future<String> getLocalUserID() async {
   final response = await http.get(
     Uri.parse('https://api.spotify.com/v1/me'),
@@ -47,20 +49,59 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
+  TextEditingController _textController = TextEditingController();
+  String _inputText = '';
+
+  String generateGameCode() {
+    // Generate a custom ID here (e.g., using a random string or numeric ID)
+    String gameId = 'game_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Trim to the last 4 characters
+    if (gameId.length > 4) {
+      gameId = gameId.substring(gameId.length - 4);
+    }
+
+    return gameId;
+  }
+
+  Future<void> createNewGame() async {
+    try {
+      CollectionReference gamesRef =
+          FirebaseFirestore.instance.collection('games');
+
+// Create a new game document with custom ID and initial data
+      DocumentReference newGameRef = gamesRef.doc(generateGameCode());
+
+      await newGameRef.set({
+        'players': {},
+        'created_at': FieldValue.serverTimestamp(),
+        // Add any other initial game data here
+      });
+
+      gameID = newGameRef.id;
+      print('New game created with ID: ${gameID}');
+    } catch (e) {
+      print('Error creating new game: $e');
+    }
+  }
+
   Future<void> _addPlayerToServer(String userID) async {
     print("adding player to server");
-    DocumentReference gameRef = FirebaseFirestore.instance
-        .collection('games')
-        .doc('myL0usrEjWVDrwUM9nus');
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(gameID);
 
     await gameRef.update({'players.$userID': 0});
+
+    if (userID == localUserID) {
+      print("saving server host");
+      await gameRef.update({'host': localUserID});
+    }
   }
 
   Future<void> _removePlayerFromServer(MyPlayer playerInstance) async {
     print("removing player from server");
-    DocumentReference gameRef = FirebaseFirestore.instance
-        .collection('games')
-        .doc('myL0usrEjWVDrwUM9nus');
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(gameID);
 
     String playerId = playerInstance.user_id;
 
@@ -95,6 +136,7 @@ class _LobbyPageState extends State<LobbyPage> {
     // reset the lobby
     if (widget.reset) resetLobby();
 
+    createNewGame();
     _initAllPlayers();
   }
 
@@ -261,6 +303,34 @@ class _LobbyPageState extends State<LobbyPage> {
                 ),
               ),
             ),
+            ElevatedButton(
+              onPressed: () {
+                _showTextFieldDialog(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: spotifyPurple),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.17,
+                child: Row(
+                  children: [
+                    Text(
+                      "Join",
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    SizedBox(
+                      width: 5,
+                    ),
+                    Container(
+                      height: 30,
+                      child: Icon(
+                        Icons.install_mobile,
+                        color: Colors.white,
+                      ),
+                    )
+                  ],
+                  mainAxisAlignment: MainAxisAlignment.center,
+                ),
+              ),
+            ),
             const Spacer(),
             Column(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -329,8 +399,61 @@ class _LobbyPageState extends State<LobbyPage> {
     );
   }
 
+  Future<void> _joinGame(String gameId) async {
+    try {
+      DocumentReference gameRef =
+          FirebaseFirestore.instance.collection('games').doc(gameId);
+
+      DocumentSnapshot gameDoc = await gameRef.get();
+
+      if (gameDoc.exists) {
+        // // Add the new player to the game
+        // String playerName = "NewPlayer"; // Replace with actual player name
+        // int score = 0;
+
+        // await gameRef.update({'players.$playerName': score});
+
+        print('Found game with ID: $gameId');
+      } else {
+        print('Game not found with ID: $gameId');
+      }
+    } catch (e) {
+      print('Error joining game: $e');
+    }
+  }
+
+  void _showTextFieldDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Connect to Lobby'),
+          content: TextField(
+            controller: _textController,
+            decoration: InputDecoration(hintText: 'Game Code'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Join'),
+              onPressed: () {
+                setState(() {
+                  _inputText = _textController.text;
+                  _textController.clear();
+
+                  _joinGame(_inputText);
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _share() async {
-    final result = await Share.share('check out my website https://example.com',
+    final result = await Share.share(
+        'Here\'s my game code for Playlist Pursuit: $gameID',
         subject: "Invite to Game");
   }
 }
@@ -661,6 +784,22 @@ class _SongListingState extends State<SongListing> {
     }
   }
 
+  Future<void> _firestoreAddSong() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(gameID);
+
+    await gameRef
+        .update({'queued_tracks.${widget.track.track_id}': localUserID});
+  }
+
+  Future<void> _firestoreRemoveSong() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(gameID);
+
+    await gameRef.update(
+        {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
@@ -743,9 +882,15 @@ class _SongListingState extends State<SongListing> {
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
                         songQueue.add(widget.track.track_id);
+
+                        _firestoreAddSong();
+
                         widget.onIncrement?.call();
                       } else {
                         songQueue.remove(widget.track.track_id);
+
+                        _firestoreRemoveSong();
+
                         widget.onDecrement?.call();
                       }
                     },
