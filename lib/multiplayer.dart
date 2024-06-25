@@ -20,20 +20,37 @@ String generateGameCode() {
   return gameId;
 }
 
-Future<void> initLobby() async {
-
+Future<void> setGameState(int state) async {
   try {
     CollectionReference gamesRef =
         FirebaseFirestore.instance.collection('games');
 
     // Create a new game document with custom ID and initial data
-    DocumentReference newGameRef = gamesRef.doc(generateGameCode());
+    DocumentReference newGameRef = gamesRef.doc(loaded_session);
+
+    await newGameRef.update({
+      'game_state':
+          state, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
+    });
+  } catch (e) {
+    print('Error setting game state: $e');
+  }
+}
+
+Future<void> initLobby(String gameCode) async {
+  try {
+    CollectionReference gamesRef =
+        FirebaseFirestore.instance.collection('games');
+
+    // Create a new game document with custom ID and initial data
+    DocumentReference newGameRef = gamesRef.doc(gameCode);
 
     await newGameRef.set({
       'players': {},
       'created_at': FieldValue.serverTimestamp(),
       'queued_tracks': {},
-      'started': false,
+      'game_state':
+          0, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
       'host': local_client_id
     });
 
@@ -46,15 +63,17 @@ Future<void> initLobby() async {
   // And now we add the local player
   await addLocalPlayer();
   await initAllPlayers();
+
+  // DEBUG
+  // await debug_addRemotePlayers();
+}
+
+Future<void> debug_addRemotePlayers() async {
+// add some multiplayer peeps
+  addPlayerToServer("abrawolf");
 }
 
 Future<void> initAllPlayers() async {
-  // // populate the lobby
-  // await addLocalPlayer();
-  // addHeadlessPlayer('abrawolf');
-  // addHeadlessPlayer('tommyryan2002');
-  // addHeadlessPlayer('nickwaizenegger');
-
   await Future.forEach(playerList.value, (MyPlayer instance) async {
     if (!instance.isInitialized) {
       await instance.initPlayer();
@@ -78,7 +97,6 @@ Future<void> addPlayerToServer(String userID) async {
 }
 
 Future<void> removePlayerFromServer(MyPlayer playerInstance) async {
-  print("removing player from server");
   DocumentReference gameRef =
       FirebaseFirestore.instance.collection('games').doc(loaded_session);
 
@@ -90,18 +108,7 @@ Future<void> removePlayerFromServer(MyPlayer playerInstance) async {
 Future<void> addLocalPlayer() async {
   local_client_id = await getLocalUserID();
 
-  playerList.value.add(MyPlayer(local_client_id));
-  addPlayerToServer(local_client_id);
-}
-
-void addHeadlessPlayer(String id) {
-  playerList.value.add(MyPlayer(id));
-  addPlayerToServer(id);
-}
-
-void addRemotePlayer(String incomingID) {
-  playerList.value.add(MyPlayer(incomingID));
-  addPlayerToServer(incomingID);
+  await addPlayerToServer(local_client_id);
 }
 
 /// Returns true if the supplied player is hosting the lobby.
@@ -120,7 +127,7 @@ Future<bool> isHost(String player_id) async {
       return true;
     }
   } else {
-    print('Document does not exist');
+    // print('Document does not exist');
   }
 
   return false;
@@ -147,6 +154,8 @@ Future<void> downloadPlayerList() async {
         playerList.value.add(newPlayer);
       },
     );
+
+    print("Your new playerlist:" + players.toString());
 
     // Initialize all of them
     initAllPlayers();
@@ -182,4 +191,14 @@ Future<int> joinGame(String gameCode) async {
   }
 
   return -1;
+}
+
+Future<void> startPlayerListen() async {
+  DocumentReference reference =
+      FirebaseFirestore.instance.collection('games').doc(loaded_session);
+  reference.snapshots().listen((querySnapshot) {
+    // print("the players are : " + querySnapshot.get("players").toString());
+
+    downloadPlayerList();
+  });
 }

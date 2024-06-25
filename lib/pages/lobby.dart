@@ -23,7 +23,7 @@ List<String> playbackQueue = [];
 class LobbyPage extends StatefulWidget {
   final int songsPerPlayer;
   final bool init;
-  String gameCode;
+  late String gameCode;
 
   LobbyPage({
     Key? key,
@@ -41,55 +41,50 @@ class _LobbyPageState extends State<LobbyPage> {
   String _inputText = '';
   bool bIsHost = false;
 
-  @override
-  void initState() {
-    super.initState();
+  Future<void> _createLobby() async {
+    widget.gameCode = generateGameCode();
 
+    await initLobby(widget.gameCode);
+  }
+
+  Future<void> _handleLobbySetup() async {
     // Execute default local behavior
     if (widget.init == true) {
       // Clear the player list
       bIsHost = true;
       playerList.value.clear();
-      initLobby();
+
+      await _createLobby();
     }
     // Execute remote behavior
     else if (widget.gameCode != "") {
       print("loading a lobby...");
     }
+    await _getHostingStatus();
+    await startPlayerListen();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _handleLobbySetup();
+  }
+
+  Future<void> _getHostingStatus() async {
+    if (await isHost(local_client_id) == true) {
+      bIsHost = true;
+    }
+
+    setState(() {});
   }
 
   void removePlayer(MyPlayer playerInstance) {
-    String display_name = playerInstance.display_name;
-
-    playerList.value.remove(playerInstance);
     removePlayerFromServer(playerInstance);
 
-    print("🔴 Removed player $display_name from lobby.");
+    print("🔴 Removed player ${playerInstance.user_id} from lobby.");
 
     playerList.notifyListeners();
-  }
-
-  Widget _createAllPlayerListings() {
-    return ListView.builder(
-      shrinkWrap: true,
-      padding: EdgeInsets.all(0),
-      itemCount: playerList.value.length,
-      itemBuilder: (BuildContext context, int index) {
-        final playerInstance = playerList.value[index];
-
-        if (playerInstance.isInitialized == false) {
-          return Container();
-        }
-
-        return Padding(
-          padding: EdgeInsets.only(top: 6, bottom: 6),
-          child: PlayerListing(
-            playerInstance: playerInstance,
-            onRemove: removePlayer,
-          ),
-        );
-      },
-    );
   }
 
   Widget build(BuildContext context) {
@@ -123,8 +118,8 @@ class _LobbyPageState extends State<LobbyPage> {
               style: TextStyle(color: Colors.white),
             ),
             const SizedBox(height: 30),
-            const Text(
-              'Manage players',
+            Text(
+              'Game code: ${widget.gameCode}',
               textAlign: TextAlign.left,
               style: TextStyle(
                   color: spotifyGreen,
@@ -150,6 +145,7 @@ class _LobbyPageState extends State<LobbyPage> {
                     }
 
                     return ListView.builder(
+                      key: UniqueKey(),
                       itemCount: value.length,
                       itemBuilder: (context, index) {
                         final playerInstance = playerList.value[index];
@@ -157,7 +153,6 @@ class _LobbyPageState extends State<LobbyPage> {
                         if (playerInstance.isInitialized == false) {
                           return Container();
                         }
-
                         return Padding(
                           padding: EdgeInsets.only(top: 6, bottom: 6),
                           child: PlayerListing(
@@ -172,118 +167,141 @@ class _LobbyPageState extends State<LobbyPage> {
             SizedBox(
               height: 5,
             ),
-            ElevatedButton(
-              onPressed: () {
-                _share();
-              },
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.25,
-                child: Row(
-                  children: [
-                    Text(
-                      "Invite",
-                      style: TextStyle(color: Colors.black, fontSize: 18),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    _share();
+                  },
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.2,
+                    child: Row(
+                      children: [
+                        Text(
+                          "Invite",
+                          style: TextStyle(color: Colors.black, fontSize: 18),
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        Container(
+                          height: 30,
+                          child: Icon(
+                            Icons.ios_share_outlined,
+                            color: Colors.black,
+                          ),
+                        )
+                      ],
+                      mainAxisAlignment: MainAxisAlignment.center,
                     ),
-                    SizedBox(
-                      width: 5,
-                    ),
-                    Container(
-                      height: 30,
-                      child: Icon(
-                        Icons.ios_share_outlined,
-                        color: Colors.black,
-                      ),
-                    )
-                  ],
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  ),
                 ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _showTextFieldDialog(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: spotifyPurple),
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.17,
-                child: Row(
-                  children: [
-                    Text(
-                      "Join",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    SizedBox(
-                      width: 5,
-                    ),
-                    Container(
-                      height: 30,
-                      child: Icon(
-                        Icons.install_mobile,
-                        color: Colors.white,
-                      ),
-                    )
-                  ],
-                  mainAxisAlignment: MainAxisAlignment.center,
+                SizedBox(
+                  width: 5,
                 ),
-              ),
+                ElevatedButton(
+                  onPressed: () {
+                    _showTextFieldDialog(context);
+                  },
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: spotifyGreen),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.17,
+                    child: Row(
+                      children: [
+                        Text(
+                          "Join",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        Container(
+                          height: 30,
+                          child: Icon(
+                            Icons.install_mobile,
+                            color: Colors.white,
+                          ),
+                        )
+                      ],
+                      mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Spacer(),
             Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Songs Per Player",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(
-                        top: 5, right: MediaQuery.of(context).size.width * 0.7),
-                    child: _buildDropdown(
-                      'Songs Per Player',
-                      songsPerPlayer,
-                      (value) {
-                        setState(() {
-                          songsPerPlayer = value!;
-                        });
-                      },
+                  if (bIsHost)
+                    Column(
+                      children: [
+                        const Text(
+                          "Songs Per Player",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.only(
+                              top: 5,
+                              right: MediaQuery.of(context).size.width * 0.7),
+                          child: _buildDropdown(
+                            'Songs Per Player',
+                            songsPerPlayer,
+                            (value) {
+                              setState(() {
+                                songsPerPlayer = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  if (playerList.value.length > 1 && bIsHost)
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => QueuePage(
-                                    gameCode: widget.gameCode,
-                                    songsPerPlayer: songsPerPlayer,
+                  ValueListenableBuilder<List<MyPlayer>>(
+                      valueListenable: playerList,
+                      builder: (context, value, child) {
+                        if (playerList.value.length > 1 && bIsHost) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    _setQueueingState();
+
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => QueuePage(
+                                          gameCode: widget.gameCode,
+                                          songsPerPlayer: songsPerPlayer,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: spotifyPurple,
+                                      minimumSize: Size(150, 50)),
+                                  child: const Text(
+                                    'Continue',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 20,
+                                        fontFamily: 'Gotham'),
                                   ),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF9d40e3),
-                                minimumSize: Size(150, 50)),
-                            child: const Text(
-                              'Continue',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 20,
-                                  fontFamily: 'Gotham'),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          );
+                        }
+
+                        return Container();
+                      }),
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.05,
                   )
@@ -294,6 +312,10 @@ class _LobbyPageState extends State<LobbyPage> {
       //   height: MediaQuery.of(context).size.height * 0.2,
       // ),
     );
+  }
+
+  Future<void> _setQueueingState() async {
+    await setGameState(1);
   }
 
   Future<void> _attemptJoinGame(String code) async {
@@ -342,14 +364,24 @@ class _LobbyPageState extends State<LobbyPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Connect to Lobby'),
+          backgroundColor: spotifyBlack,
+          title: Text(
+            'Connect to Lobby',
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
             controller: _textController,
-            decoration: InputDecoration(hintText: 'Game Code'),
+            decoration: InputDecoration(
+                hintText: 'Game Code',
+                hintStyle: TextStyle(color: Colors.grey)),
+            style: TextStyle(color: Colors.white),
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('Join'),
+              child: Text(
+                'Join',
+                style: TextStyle(color: spotifyGreen),
+              ),
               onPressed: () {
                 setState(() {
                   _inputText = _textController.text;
@@ -871,6 +903,7 @@ class _PlayerListingState extends State<PlayerListing> {
 
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
+    // if the user is remote and the local user is the host then able kicking
     if (widget.playerInstance.user_id != local_client_id &&
         await isHost(local_client_id)) {
       enableKicking = true;
@@ -879,7 +912,7 @@ class _PlayerListingState extends State<PlayerListing> {
     if (await isHost(widget.playerInstance.user_id)) {
       bIsHost = true;
 
-      print("HOST!");
+      // print(widget.playerInstance.user_id + "is given host icon");
     }
 
     setState(() {});
@@ -923,78 +956,76 @@ class _PlayerListingState extends State<PlayerListing> {
             ),
           ),
 
-          bIsHost
-              ? GestureDetector(
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.transparent,
-                    ),
-                    child: Icon(
-                      Icons.phone_iphone_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                )
-              : SizedBox.shrink(),
+          if (bIsHost)
+            GestureDetector(
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                ),
+                child: Icon(
+                  Icons.phone_iphone_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
 
           // Enable the kicking option if it's allowed for the player
 
-          enableKicking
-              ? GestureDetector(
-                  onTap: () {
-                    showCupertinoDialog(
-                      context: context,
-                      builder: (context) {
-                        return CupertinoAlertDialog(
-                          title: Text("Confirm"),
-                          content: Text(
-                              "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
-                          actions: [
-                            CupertinoDialogAction(
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.blueAccent),
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: Text(
-                                "Kick",
-                                style: TextStyle(color: Colors.redAccent),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  widget.onRemove?.call(widget.playerInstance);
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
-                        );
-                      },
+          if (enableKicking)
+            GestureDetector(
+              onTap: () {
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) {
+                    return CupertinoAlertDialog(
+                      title: Text("Confirm"),
+                      content: Text(
+                          "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
+                      actions: [
+                        CupertinoDialogAction(
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(color: Colors.blueAccent),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        CupertinoDialogAction(
+                          child: Text(
+                            "Kick",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              widget.onRemove?.call(widget.playerInstance);
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
                     );
                   },
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.transparent,
-                    ),
-                    child: Icon(
-                      Icons.remove_circle_outline_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                )
-              : SizedBox.shrink()
+                );
+              },
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                ),
+                child: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            )
         ],
       ),
     );
