@@ -63,8 +63,7 @@ class _LobbyPageState extends State<LobbyPage> {
       print("loading a lobby...");
     }
     await _getHostingStatus();
-    await startPlayerListen();
-    await startGameStateListen();
+    firestoreService.listenForChanges();
   }
 
   @override
@@ -258,6 +257,8 @@ class _LobbyPageState extends State<LobbyPage> {
                             (value) {
                               setState(() {
                                 songsPerPlayer = value!;
+
+                                firestoreService.setSongsPerPlayer(value);
                               });
                             },
                           ),
@@ -310,7 +311,7 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Future<void> _setQueueingState() async {
-    await setGameState(1);
+    await firestoreService.Host_SetGameState(1);
   }
 
   Future<void> _attemptJoinGame(String code) async {
@@ -443,7 +444,10 @@ class QueuePage extends StatefulWidget {
   final String gameCode;
 
   const QueuePage(
-      {Key? key, required this.songsPerPlayer, required this.gameCode})
+      {Key? key,
+      required this.songsPerPlayer,
+      required this.gameCode,
+      required})
       : super(key: key);
 
   @override
@@ -456,9 +460,14 @@ class _QueuePageState extends State<QueuePage> {
   bool isSearching = false;
   Future<List<String>>? _fetchTopSongsFuture;
   Future<List<String>>? _searchedSongs;
+  late bool bIsHost = false;
 
   Future<List<String>> fetchTopSongs() async {
     return await getTopTracks(myToken);
+  }
+
+  Future<void> _getHostingStatus() async {
+    bIsHost = await isHost(local_client_id);
   }
 
   @override
@@ -469,6 +478,8 @@ class _QueuePageState extends State<QueuePage> {
     songQueue = [];
     playbackQueue = [];
     _fetchTopSongsFuture = fetchTopSongs();
+
+    _getHostingStatus();
   }
 
   Future<void> _search(String query) async {
@@ -643,18 +654,13 @@ class _QueuePageState extends State<QueuePage> {
                       _enableButton = true;
                     }
 
-                    if (_enableButton) {
+                    if (_enableButton && bIsHost) {
                       return Center(
                         child: ElevatedButton(
                           onPressed: () async {
                             playbackQueue = [...songQueue];
 
-                            // update
-                            DocumentReference gameRef = FirebaseFirestore
-                                .instance
-                                .collection('games')
-                                .doc(widget.gameCode);
-                            await gameRef.update({'started': true});
+                            firestoreService.Host_SetGameState(2);
 
                             Navigator.push(
                               context,
@@ -680,12 +686,20 @@ class _QueuePageState extends State<QueuePage> {
                         ),
                       );
                     } else {
+                      int remainingSongs =
+                          widget.songsPerPlayer - songsAdded.value;
+
+                      String message = "";
+
+                      if (remainingSongs > 0)
+                        message =
+                            "Add " + remainingSongs.toString() + " more songs";
+                      else
+                        message = "Waiting for host.";
+
                       return Center(
                           child: Text(
-                        "Add " +
-                            (widget.songsPerPlayer - songsAdded.value)
-                                .toString() +
-                            " more songs",
+                        message,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -837,14 +851,10 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
-                        songQueue.add(widget.track.track_id);
-
                         _firestoreAddSong();
 
                         widget.onIncrement?.call();
                       } else {
-                        songQueue.remove(widget.track.track_id);
-
                         _firestoreRemoveSong();
 
                         widget.onDecrement?.call();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:queue_quandry/multiplayer.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'pages/login.dart';
 import 'styles.dart';
@@ -8,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
 
+late FirestoreController firestoreService;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -15,7 +17,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp( 
+  firestoreService = FirestoreController();
+
+  runApp(
     Provider.value(
       value: FirebaseFirestore.instance,
       child: MyApp(),

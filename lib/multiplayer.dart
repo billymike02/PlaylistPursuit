@@ -7,7 +7,7 @@ String local_client_id = "DefaultUser";
 ValueNotifier<List<MyPlayer>> playerList = ValueNotifier<List<MyPlayer>>([]);
 
 // Store the game ID locally
-String loaded_session = "";
+late String server_id;
 
 String generateGameCode() {
   // Generate a custom ID here (e.g., using a random string or numeric ID)
@@ -19,23 +19,6 @@ String generateGameCode() {
   }
 
   return gameId;
-}
-
-Future<void> setGameState(int state) async {
-  try {
-    CollectionReference gamesRef =
-        FirebaseFirestore.instance.collection('games');
-
-    // Create a new game document with custom ID and initial data
-    DocumentReference newGameRef = gamesRef.doc(loaded_session);
-
-    await newGameRef.update({
-      'game_state':
-          state, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
-    });
-  } catch (e) {
-    print('Error setting game state: $e');
-  }
 }
 
 Future<void> initLobby(String gameCode) async {
@@ -56,8 +39,8 @@ Future<void> initLobby(String gameCode) async {
       'songs_per_player': 3
     });
 
-    loaded_session = newGameRef.id;
-    print('New game created with ID: ${loaded_session}');
+    server_id = newGameRef.id;
+    print('New game created with ID: ${server_id}');
   } catch (e) {
     print('Error creating new game: $e');
   }
@@ -80,7 +63,7 @@ Future<void> initAllPlayers() async {
     if (!instance.isInitialized) {
       await instance.initPlayer();
       String display_name = instance.display_name;
-      print("🟢 Player $display_name joined lobby.");
+      // print("🟢 Player $display_name joined lobby.");
 
       playerList.notifyListeners();
     }
@@ -89,7 +72,7 @@ Future<void> initAllPlayers() async {
 
 Future<void> addPlayerToServer(String userID) async {
   DocumentReference gameRef =
-      FirebaseFirestore.instance.collection('games').doc(loaded_session);
+      FirebaseFirestore.instance.collection('games').doc(server_id);
 
   await gameRef.update({'players.$userID': 0});
 
@@ -100,7 +83,7 @@ Future<void> addPlayerToServer(String userID) async {
 
 Future<void> removePlayerFromServer(MyPlayer playerInstance) async {
   DocumentReference gameRef =
-      FirebaseFirestore.instance.collection('games').doc(loaded_session);
+      FirebaseFirestore.instance.collection('games').doc(server_id);
 
   String playerId = playerInstance.user_id;
 
@@ -115,10 +98,8 @@ Future<void> addLocalPlayer() async {
 
 /// Returns true if the supplied player is hosting the lobby.
 Future<bool> isHost(String player_id) async {
-  DocumentSnapshot gameSnapshot = await FirebaseFirestore.instance
-      .collection('games')
-      .doc(loaded_session)
-      .get();
+  DocumentSnapshot gameSnapshot =
+      await FirebaseFirestore.instance.collection('games').doc(server_id).get();
 
   if (gameSnapshot.exists) {
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
@@ -136,10 +117,8 @@ Future<bool> isHost(String player_id) async {
 }
 
 Future<void> downloadPlayerList() async {
-  DocumentSnapshot gameSnapshot = await FirebaseFirestore.instance
-      .collection('games')
-      .doc(loaded_session)
-      .get();
+  DocumentSnapshot gameSnapshot =
+      await FirebaseFirestore.instance.collection('games').doc(server_id).get();
 
   if (gameSnapshot.exists) {
     // Clear the locally stored lobby
@@ -178,7 +157,7 @@ Future<int> joinGame(String gameCode) async {
       print('Joined game with ID: $gameCode');
 
       // Now we need to update the local fields with the data fetched from the server
-      loaded_session = gameCode;
+      server_id = gameCode;
 
       await downloadPlayerList();
 
@@ -195,41 +174,99 @@ Future<int> joinGame(String gameCode) async {
 
 Future<void> startPlayerListen() async {
   DocumentReference reference =
-      FirebaseFirestore.instance.collection('games').doc(loaded_session);
+      FirebaseFirestore.instance.collection('games').doc(server_id);
   reference.snapshots().listen((querySnapshot) {
+    print("NEW PLAYER LIST OUTTA BE DOWNLOADED!");
     downloadPlayerList();
   });
 }
 
-Future<void> startGameStateListen() async {
-  DocumentReference reference =
-      FirebaseFirestore.instance.collection('games').doc(loaded_session);
-
-  reference.snapshots().listen((snapshot) {
-    if (snapshot.exists) {
-      var data = snapshot.data() as Map<String, dynamic>?;
-      if (data != null && data['game_state'] != null) {
-        int gameState = data['game_state'];
-        print('Game state: $gameState');
-
-        if (gameState == 1) {
-          navigateToQueueingPage();
-        }
-      }
-    } else {
-      print('Document does not exist');
-    }
-  });
-}
-
 void navigateToQueueingPage() {
-  print("naving to next page");
-
   navigatorKey.currentState!.push(
     MaterialPageRoute(
         builder: (context) => QueuePage(
-              gameCode: loaded_session,
+              gameCode: server_id,
               songsPerPlayer: songsPerPlayer,
             )), // Replace NewPage with your actual new page widget
   );
+}
+
+class FirestoreController {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Saved fields for update checking
+  Map<String, dynamic> previousMap = {};
+  int previousGameState = 0;
+  int previousSongsPerPlayer = 3;
+
+  void listenForChanges() {
+    _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
+      if (snapshot.exists) {
+        Map<String, dynamic> currentMap =
+            snapshot.data()!['players'] as Map<String, dynamic>;
+
+        if (mapEquals(previousMap, {}) || _mapHasChanged(currentMap)) {
+          _onPlayerListChange();
+        }
+
+        previousMap = Map<String, dynamic>.from(currentMap);
+
+        int currentGameState = snapshot.data()!['game_state'];
+
+        if (previousGameState != currentGameState) {
+          _onGameStateChange(currentGameState);
+        }
+
+        previousGameState = currentGameState;
+
+        int currentSongsPerPlayer = snapshot.data()!['songs_per_player'];
+
+        if (previousSongsPerPlayer != currentSongsPerPlayer) {
+          _onSongsPerPlayerChange(currentSongsPerPlayer);
+        }
+
+        previousSongsPerPlayer = currentSongsPerPlayer;
+      }
+    });
+  }
+
+  Future<void> setSongsPerPlayer(int newNum) async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+
+    await gameRef.update({'songs_per_player': newNum});
+  }
+
+  void _onSongsPerPlayerChange(int newNum) {
+    // idk
+  }
+
+  void _onGameStateChange(int newState) {
+    if (newState == 1) {
+      navigateToQueueingPage();
+    }
+  }
+
+  void _onPlayerListChange() {
+    downloadPlayerList();
+  }
+
+  bool _mapHasChanged(Map<String, dynamic> currentMap) {
+    return previousMap.isNotEmpty && !mapEquals(previousMap, currentMap);
+  }
+
+  bool mapEquals(Map<String, dynamic> map1, Map<String, dynamic> map2) {
+    if (map1.length != map2.length) return false;
+    for (var key in map1.keys) {
+      if (map1[key] != map2[key]) return false;
+    }
+    return true;
+  }
+
+  Future<void> Host_SetGameState(int newState) async {
+    // update
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+    await gameRef.update({'game_state': newState});
+  }
 }
