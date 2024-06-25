@@ -15,6 +15,8 @@ import 'package:logger/logger.dart';
 import 'package:queue_quandry/multiplayer.dart';
 
 List<String> songQueue = [];
+// Define a GlobalKey<NavigatorState>
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 int songsPerPlayer = 3;
 ValueNotifier<int> songsAdded = ValueNotifier<int>(0);
@@ -62,6 +64,7 @@ class _LobbyPageState extends State<LobbyPage> {
     }
     await _getHostingStatus();
     await startPlayerListen();
+    await startGameStateListen();
   }
 
   @override
@@ -273,15 +276,7 @@ class _LobbyPageState extends State<LobbyPage> {
                                   onPressed: () {
                                     _setQueueingState();
 
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => QueuePage(
-                                          gameCode: widget.gameCode,
-                                          songsPerPlayer: songsPerPlayer,
-                                        ),
-                                      ),
-                                    );
+                                    navigateToQueueingPage();
                                   },
                                   style: ElevatedButton.styleFrom(
                                       backgroundColor: spotifyPurple,

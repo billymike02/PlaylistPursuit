@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:queue_quandry/pages/lobby.dart';
 import 'spotify-api.dart';
 
 String local_client_id = "DefaultUser";
@@ -51,7 +52,8 @@ Future<void> initLobby(String gameCode) async {
       'queued_tracks': {},
       'game_state':
           0, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
-      'host': local_client_id
+      'host': local_client_id,
+      'songs_per_player': 3
     });
 
     loaded_session = newGameRef.id;
@@ -155,8 +157,6 @@ Future<void> downloadPlayerList() async {
       },
     );
 
-    print("Your new playerlist:" + players.toString());
-
     // Initialize all of them
     initAllPlayers();
   } else {
@@ -197,8 +197,39 @@ Future<void> startPlayerListen() async {
   DocumentReference reference =
       FirebaseFirestore.instance.collection('games').doc(loaded_session);
   reference.snapshots().listen((querySnapshot) {
-    // print("the players are : " + querySnapshot.get("players").toString());
-
     downloadPlayerList();
   });
+}
+
+Future<void> startGameStateListen() async {
+  DocumentReference reference =
+      FirebaseFirestore.instance.collection('games').doc(loaded_session);
+
+  reference.snapshots().listen((snapshot) {
+    if (snapshot.exists) {
+      var data = snapshot.data() as Map<String, dynamic>?;
+      if (data != null && data['game_state'] != null) {
+        int gameState = data['game_state'];
+        print('Game state: $gameState');
+
+        if (gameState == 1) {
+          navigateToQueueingPage();
+        }
+      }
+    } else {
+      print('Document does not exist');
+    }
+  });
+}
+
+void navigateToQueueingPage() {
+  print("naving to next page");
+
+  navigatorKey.currentState!.push(
+    MaterialPageRoute(
+        builder: (context) => QueuePage(
+              gameCode: loaded_session,
+              songsPerPlayer: songsPerPlayer,
+            )), // Replace NewPage with your actual new page widget
+  );
 }

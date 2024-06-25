@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:queue_quandry/pages/lobby.dart';
 import 'pages/login.dart';
 import 'styles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,7 +15,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(
+  runApp( 
     Provider.value(
       value: FirebaseFirestore.instance,
       child: MyApp(),
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Gotham'),
       home: const LoginPage(),
+      navigatorKey: navigatorKey,
     );
   }
 }
