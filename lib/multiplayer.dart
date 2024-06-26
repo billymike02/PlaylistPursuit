@@ -5,7 +5,8 @@ import 'package:queue_quandry/pages/lobby.dart';
 import 'spotify-api.dart';
 
 String local_client_id = "DefaultUser";
-ValueNotifier<List<MyPlayer>> playerList = ValueNotifier<List<MyPlayer>>([]);
+ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
+ValueNotifier<List<String>> songQueue = ValueNotifier<List<String>>([]);
 
 // Store the game ID locally
 late String server_id;
@@ -60,7 +61,7 @@ Future<void> debug_addRemotePlayers() async {
 }
 
 Future<void> initAllPlayers() async {
-  await Future.forEach(playerList.value, (MyPlayer instance) async {
+  await Future.forEach(playerList.value, (Player instance) async {
     if (!instance.isInitialized) {
       await instance.initPlayer();
       String display_name = instance.display_name;
@@ -82,7 +83,7 @@ Future<void> addPlayerToServer(String userID) async {
   }
 }
 
-Future<void> removePlayerFromServer(MyPlayer playerInstance) async {
+Future<void> removePlayerFromServer(Player playerInstance) async {
   DocumentReference gameRef =
       FirebaseFirestore.instance.collection('games').doc(server_id);
 
@@ -117,6 +118,29 @@ Future<bool> isHost(String player_id) async {
   return false;
 }
 
+Future<void> downloadTrackQueue() async {
+  DocumentSnapshot gameSnapshot =
+      await FirebaseFirestore.instance.collection('games').doc(server_id).get();
+
+  if (gameSnapshot.exists) {
+    // Clear the locally stored song queue
+    songQueue.value.clear();
+
+    // Parse the server data for the list of players
+    Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
+    Map<String, dynamic> trackQueue = gameData['queued_tracks'];
+
+    // Copy these players to the local thing
+    trackQueue.forEach(
+      (key, value) {
+        songQueue.value = List.from(songQueue.value)..add(key);
+      },
+    );
+  } else {
+    print('Document does not exist');
+  }
+}
+
 Future<void> downloadPlayerList() async {
   DocumentSnapshot gameSnapshot =
       await FirebaseFirestore.instance.collection('games').doc(server_id).get();
@@ -132,8 +156,8 @@ Future<void> downloadPlayerList() async {
     // Copy these players to the local thing
     players.forEach(
       (key, value) {
-        MyPlayer newPlayer = MyPlayer(key);
-        playerList.value.add(newPlayer);
+        Player newPlayer = Player(key);
+        playerList.value = List.from(playerList.value)..add(newPlayer);
       },
     );
 
@@ -173,15 +197,6 @@ Future<int> joinGame(String gameCode) async {
   return -1;
 }
 
-Future<void> startPlayerListen() async {
-  DocumentReference reference =
-      FirebaseFirestore.instance.collection('games').doc(server_id);
-  reference.snapshots().listen((querySnapshot) {
-    print("NEW PLAYER LIST OUTTA BE DOWNLOADED!");
-    downloadPlayerList();
-  });
-}
-
 void navigateToQueueingPage() {
   navigatorKey.currentState!.push(
     MaterialPageRoute(
@@ -202,22 +217,55 @@ class FirestoreController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // Saved fields for update checking
-  Map<String, dynamic> previousMap = {};
-  // Map<String, dynamic> previousTrackQueue 
+  Map<String, dynamic> previousPlayerList = {};
+  Map<String, dynamic> previousTrackQueue = {};
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
+
+  Future<void> Host_ShufflePlaybackOrder() async {
+    _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
+      if (snapshot.exists) {
+        Map<String, dynamic> currentTrackQueue =
+            snapshot.data()!['queued_tracks'] as Map<String, dynamic>;
+
+        List<MapEntry<String, dynamic>> entryList =
+            currentTrackQueue.entries.toList();
+
+        entryList.shuffle();
+        Map<String, dynamic> shuffledTrackQueue =
+            Map<String, dynamic>.fromEntries(entryList);
+
+        print("Shuffled tracks: " + shuffledTrackQueue.toString());
+
+        DocumentReference gameRef =
+            FirebaseFirestore.instance.collection('games').doc(server_id);
+        gameRef.update({'queued_tracks': shuffledTrackQueue});
+      }
+    });
+  }
 
   void listenForChanges() {
     _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
       if (snapshot.exists) {
-        Map<String, dynamic> currentMap =
+        Map<String, dynamic> currentPlayerList =
             snapshot.data()!['players'] as Map<String, dynamic>;
 
-        if (mapEquals(previousMap, {}) || _mapHasChanged(currentMap)) {
+        if (mapEquals(previousPlayerList, {}) ||
+            _playerListHasChanged(currentPlayerList)) {
           _onPlayerListChange();
         }
 
-        previousMap = Map<String, dynamic>.from(currentMap);
+        previousPlayerList = Map<String, dynamic>.from(currentPlayerList);
+
+        Map<String, dynamic> currentTrackQueue =
+            snapshot.data()!['queued_tracks'] as Map<String, dynamic>;
+
+        if (mapEquals(previousTrackQueue, {}) ||
+            _trackQueueHasChanged(currentTrackQueue)) {
+          _onTrackQueueChange();
+        }
+
+        previousTrackQueue = Map<String, dynamic>.from(currentTrackQueue);
 
         int currentGameState = snapshot.data()!['game_state'];
 
@@ -246,14 +294,19 @@ class FirestoreController {
   }
 
   void _onSongsPerPlayerChange(int newNum) {
-    // idk
+    //downloadSongsPerPlayer
+    songsPerPlayer = newNum;
   }
 
-  void _onGameStateChange(int newState) {
+  Future<void> _onGameStateChange(int newState) async {
     if (newState == 1) {
       navigateToQueueingPage();
     } else if (newState == 2) {
       navigateToGuessingPage();
+
+      if (await isHost(local_client_id)) {
+        Host_ShufflePlaybackOrder();
+      }
     }
   }
 
@@ -261,8 +314,18 @@ class FirestoreController {
     downloadPlayerList();
   }
 
-  bool _mapHasChanged(Map<String, dynamic> currentMap) {
-    return previousMap.isNotEmpty && !mapEquals(previousMap, currentMap);
+  void _onTrackQueueChange() {
+    downloadTrackQueue();
+  }
+
+  bool _trackQueueHasChanged(Map<String, dynamic> currentMap) {
+    return previousTrackQueue.isNotEmpty &&
+        !mapEquals(previousTrackQueue, currentMap);
+  }
+
+  bool _playerListHasChanged(Map<String, dynamic> currentMap) {
+    return previousPlayerList.isNotEmpty &&
+        !mapEquals(previousPlayerList, currentMap);
   }
 
   bool mapEquals(Map<String, dynamic> map1, Map<String, dynamic> map2) {

@@ -29,15 +29,13 @@ class _GuessingPageState extends State<GuessingPage> {
   late int songLength;
 
   // Fields (to be mutated by our backend)
-  MyPlayer guiltyPlayer = playerList.value[1];
+  Player guiltyPlayer = playerList.value[1];
 
   // Local fields
   bool correctGuess = false;
   List<bool> buttonsPressed = [];
 
   Future<void> getNewTrack() async {
-    // await cleanSpotifyQueue();
-
     String new_song = playbackQueue.removeAt(0);
 
     var data = await getTrackInfo(new_song);
@@ -60,6 +58,9 @@ class _GuessingPageState extends State<GuessingPage> {
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }
+
+    playbackQueue = [...songQueue.value];
+    print("Playback Queue: $playbackQueue");
 
     getNewTrack();
   }
@@ -359,7 +360,7 @@ class _TimerBarState extends State<TimerBar> {
 
 class ResultPage extends StatefulWidget {
   final bool isCorrect;
-  final MyPlayer guiltyPlayer;
+  final Player guiltyPlayer;
   const ResultPage(
       {Key? key, required this.isCorrect, required this.guiltyPlayer})
       : super(key: key);

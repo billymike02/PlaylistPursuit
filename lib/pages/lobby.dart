@@ -14,12 +14,10 @@ import '../main.dart';
 import 'package:logger/logger.dart';
 import 'package:queue_quandry/multiplayer.dart';
 
-List<String> songQueue = [];
 // Define a GlobalKey<NavigatorState>
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 int songsPerPlayer = 3;
-ValueNotifier<int> songsAdded = ValueNotifier<int>(0);
 List<String> playbackQueue = [];
 
 class LobbyPage extends StatefulWidget {
@@ -81,7 +79,7 @@ class _LobbyPageState extends State<LobbyPage> {
     setState(() {});
   }
 
-  void removePlayer(MyPlayer playerInstance) {
+  void removePlayer(Player playerInstance) {
     removePlayerFromServer(playerInstance);
 
     print("🔴 Removed player ${playerInstance.user_id} from lobby.");
@@ -133,7 +131,7 @@ class _LobbyPageState extends State<LobbyPage> {
             ),
             SizedBox(
                 height: MediaQuery.of(context).size.height * 0.30,
-                child: ValueListenableBuilder<List<MyPlayer>>(
+                child: ValueListenableBuilder<List<Player>>(
                   valueListenable: playerList,
                   builder: (context, value, child) {
                     if (value.length < 1) {
@@ -265,7 +263,7 @@ class _LobbyPageState extends State<LobbyPage> {
                         ),
                       ],
                     ),
-                  ValueListenableBuilder<List<MyPlayer>>(
+                  ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
                         if (playerList.value.length > 1 && bIsHost) {
@@ -474,8 +472,6 @@ class _QueuePageState extends State<QueuePage> {
   void initState() {
     super.initState();
 
-    songsAdded.value = 0;
-    songQueue = [];
     playbackQueue = [];
     _fetchTopSongsFuture = fetchTopSongs();
 
@@ -594,8 +590,6 @@ class _QueuePageState extends State<QueuePage> {
                                     child: SongListing(
                                       gameCode: widget.gameCode,
                                       track: Track(snapshot.data![index]),
-                                      onIncrement: incrementSongsAdded,
-                                      onDecrement: decrementSongsAdded,
                                     ),
                                   );
                                 });
@@ -630,8 +624,6 @@ class _QueuePageState extends State<QueuePage> {
                                   child: SongListing(
                                     gameCode: widget.gameCode,
                                     track: Track(snapshot.data![index]),
-                                    onIncrement: incrementSongsAdded,
-                                    onDecrement: decrementSongsAdded,
                                   ),
                                 );
                               },
@@ -644,50 +636,66 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder(
-                valueListenable: songsAdded,
+            ValueListenableBuilder<List<String>>(
+                valueListenable: songQueue,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
                     bool _enableButton = false; // true jsut for debug
 
-                    if (widget.songsPerPlayer - songsAdded.value <= 0) {
+                    if (widget.songsPerPlayer - songQueue.value.length <= 0) {
                       _enableButton = true;
                     }
 
                     if (_enableButton && bIsHost) {
-                      return Center(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            playbackQueue = [...songQueue];
+                      int start_requirment =
+                          playerList.value.length * songsPerPlayer;
 
-                            firestoreService.Host_SetGameState(2);
+                      print(
+                          "Songs queued: ${songQueue.value.length} songs required: $start_requirment}");
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => GuessingPage()),
-                            );
-                          },
-                          child: Text(
-                            "Start Game",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 25, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                      if (songQueue.value.length >= start_requirment) {
+                        return Center(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              firestoreService.Host_SetGameState(2);
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => GuessingPage()),
+                              );
+                            },
+                            child: Text(
+                              "Start Game",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20),
                             ),
-                            backgroundColor: spotifyGreen,
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 25, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30.0),
+                              ),
+                              backgroundColor: spotifyGreen,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        return Center(
+                            child: Text(
+                          "Waiting for other players.",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ));
+                      }
                     } else {
                       int remainingSongs =
-                          widget.songsPerPlayer - songsAdded.value;
+                          widget.songsPerPlayer - songQueue.value.length;
 
                       String message = "";
 
@@ -715,27 +723,16 @@ class _QueuePageState extends State<QueuePage> {
       ),
     );
   }
-
-  void incrementSongsAdded() {
-    songsAdded.value++;
-  }
-
-  void decrementSongsAdded() {
-    songsAdded.value--;
-  }
 }
 
 class SongListing extends StatefulWidget {
   final Track track;
-  final Function()? onIncrement;
-  final Function()? onDecrement;
+
   final String gameCode;
 
   SongListing({
     required this.track,
     required this.gameCode,
-    this.onIncrement,
-    this.onDecrement,
   });
 
   @override
@@ -749,7 +746,7 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (songQueue.contains(widget.track.track_id)) {
+    if (songQueue.value.contains(widget.track.track_id)) {
       isChecked.value = true;
     }
   }
@@ -760,6 +757,8 @@ class _SongListingState extends State<SongListing> {
 
     await gameRef
         .update({'queued_tracks.${widget.track.track_id}': local_client_id});
+
+    await firestoreService.Host_ShufflePlaybackOrder();
   }
 
   Future<void> _firestoreRemoveSong() async {
@@ -825,7 +824,7 @@ class _SongListingState extends State<SongListing> {
                 GestureDetector(
                     onTap: () {
                       if (!isChecked.value &&
-                          songsAdded.value + 1 > songsPerPlayer) {
+                          songQueue.value.length + 1 > songsPerPlayer) {
                         showCupertinoDialog(
                           context: context,
                           builder: (BuildContext context) {
@@ -851,16 +850,15 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
-                        songQueue.add(widget.track.track_id);
-                        _firestoreAddSong();
+                        songQueue.value = List.from(songQueue.value)
+                          ..add(widget.track.track_id);
 
-                        widget.onIncrement?.call();
+                        _firestoreAddSong();
                       } else {
-                        songQueue.remove(widget.track.track_id);
+                        songQueue.value = List.from(songQueue.value)
+                          ..remove(widget.track.track_id);
 
                         _firestoreRemoveSong();
-
-                        widget.onDecrement?.call();
                       }
                     },
                     child: ValueListenableBuilder<bool>(
@@ -893,8 +891,8 @@ class _SongListingState extends State<SongListing> {
 }
 
 class PlayerListing extends StatefulWidget {
-  final MyPlayer playerInstance;
-  final Function(MyPlayer)? onRemove;
+  final Player playerInstance;
+  final Function(Player)? onRemove;
 
   PlayerListing({
     required this.playerInstance,

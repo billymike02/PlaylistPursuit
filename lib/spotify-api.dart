@@ -40,14 +40,14 @@ class Track {
   }
 }
 
-class MyPlayer {
+class Player {
   final String user_id;
   late String display_name;
   late String image;
   bool isInitialized;
   int score = 0;
 
-  MyPlayer(this.user_id, {this.isInitialized = false});
+  Player(this.user_id, {this.isInitialized = false});
 
   Future<void> initPlayer() async {
     await ensureTokenIsValid();
@@ -355,7 +355,7 @@ Future<void> addTracksToPlaylist(String playlistId) async {
       'Content-Type': 'application/json',
     },
     body: json.encode({
-      'uris': songQueue.map((id) => 'spotify:track:$id').toList(),
+      'uris': songQueue.value.map((id) => 'spotify:track:$id').toList(),
     }),
   );
 }
