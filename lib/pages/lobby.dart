@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
 import 'package:spotify_sdk/models/player_options.dart';
@@ -37,8 +38,6 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
-  TextEditingController _textController = TextEditingController();
-  String _inputText = '';
   bool bIsHost = false;
 
   Future<void> _createLobby() async {
@@ -48,6 +47,7 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Future<void> _handleLobbySetup() async {
+
     // Execute default local behavior
     if (widget.init == true) {
       // Clear the player list
@@ -196,38 +196,6 @@ class _LobbyPageState extends State<LobbyPage> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 5,
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    _showTextFieldDialog(context);
-                  },
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: spotifyGreen),
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.17,
-                    child: Row(
-                      children: [
-                        Text(
-                          "Join",
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                        SizedBox(
-                          width: 5,
-                        ),
-                        Container(
-                          height: 30,
-                          child: Icon(
-                            Icons.install_mobile,
-                            color: Colors.white,
-                          ),
-                        )
-                      ],
-                      mainAxisAlignment: MainAxisAlignment.center,
-                    ),
-                  ),
-                ),
               ],
             ),
             const Spacer(),
@@ -310,86 +278,6 @@ class _LobbyPageState extends State<LobbyPage> {
 
   Future<void> _setQueueingState() async {
     await firestoreService.Host_SetGameState(1);
-  }
-
-  Future<void> _attemptJoinGame(String code) async {
-    int result = await joinGame(code);
-
-    // If the connection fails, inform the user.
-    if (result != 0) {
-      showCupertinoDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return CupertinoAlertDialog(
-            title: Text("Unable to Connect to Lobby"),
-            content: Text("\"$code\" is an invalid game code."),
-            actions: <Widget>[
-              CupertinoDialogAction(
-                child: Text("OK", style: TextStyle(color: Colors.redAccent)),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-
-      return;
-    }
-
-    _joinLobby(code);
-  }
-
-  void _joinLobby(String code) {
-    // Navigate to the new lobby page
-    Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LobbyPage(
-            gameCode: code,
-            init: false,
-          ),
-        ));
-  }
-
-  void _showTextFieldDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: spotifyBlack,
-          title: Text(
-            'Connect to Lobby',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: TextField(
-            controller: _textController,
-            decoration: InputDecoration(
-                hintText: 'Game Code',
-                hintStyle: TextStyle(color: Colors.grey)),
-            style: TextStyle(color: Colors.white),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Join',
-                style: TextStyle(color: spotifyGreen),
-              ),
-              onPressed: () {
-                setState(() {
-                  _inputText = _textController.text;
-                  _textController.clear();
-
-                  _attemptJoinGame(_inputText);
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _share() async {

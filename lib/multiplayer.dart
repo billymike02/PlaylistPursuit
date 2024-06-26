@@ -157,7 +157,7 @@ Future<void> downloadPlayerList() async {
     players.forEach(
       (key, value) {
         Player newPlayer = Player(key);
-        playerList.value = List.from(playerList.value)..add(newPlayer);
+        playerList.value.add(newPlayer);
       },
     );
 
