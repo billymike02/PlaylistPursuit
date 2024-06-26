@@ -851,10 +851,13 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
+                        songQueue.add(widget.track.track_id);
                         _firestoreAddSong();
 
                         widget.onIncrement?.call();
                       } else {
+                        songQueue.remove(widget.track.track_id);
+
                         _firestoreRemoveSong();
 
                         widget.onDecrement?.call();

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:queue_quandry/pages/game.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'spotify-api.dart';
 
@@ -187,7 +188,13 @@ void navigateToQueueingPage() {
         builder: (context) => QueuePage(
               gameCode: server_id,
               songsPerPlayer: songsPerPlayer,
-            )), // Replace NewPage with your actual new page widget
+            )),
+  );
+}
+
+void navigateToGuessingPage() {
+  navigatorKey.currentState!.push(
+    MaterialPageRoute(builder: (context) => GuessingPage()),
   );
 }
 
@@ -196,6 +203,7 @@ class FirestoreController {
 
   // Saved fields for update checking
   Map<String, dynamic> previousMap = {};
+  // Map<String, dynamic> previousTrackQueue 
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
 
@@ -244,6 +252,8 @@ class FirestoreController {
   void _onGameStateChange(int newState) {
     if (newState == 1) {
       navigateToQueueingPage();
+    } else if (newState == 2) {
+      navigateToGuessingPage();
     }
   }
 
