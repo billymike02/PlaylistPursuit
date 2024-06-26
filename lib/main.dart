@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:queue_quandry/multiplayer.dart';
+import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'pages/login.dart';
 import 'styles.dart';
@@ -35,7 +36,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Gotham'),
-      home: const LoginPage(),
+      home: HomePage(),
       navigatorKey: navigatorKey,
     );
   }
