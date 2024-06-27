@@ -42,7 +42,7 @@ Future<void> initLobby(String gameCode) async {
     });
 
     server_id = newGameRef.id;
-    print('New game created with ID: ${server_id}');
+    // print('New game created with ID: ${server_id}');
   } catch (e) {
     print('Error creating new game: $e');
   }
@@ -179,7 +179,7 @@ Future<int> joinGame(String gameCode) async {
       // Add the local player to the session
       await gameRef.update({'players.$local_client_id': 0});
 
-      print('Joined game with ID: $gameCode');
+      // print('Joined game with ID: $gameCode');
 
       // Now we need to update the local fields with the data fetched from the server
       server_id = gameCode;
@@ -188,7 +188,7 @@ Future<int> joinGame(String gameCode) async {
 
       return 0;
     } else {
-      print('Game not found with ID: $gameCode');
+      // print('Game not found with ID: $gameCode');
     }
   } catch (e) {
     print('Error joining game: $e');
@@ -235,7 +235,7 @@ class FirestoreController {
         Map<String, dynamic> shuffledTrackQueue =
             Map<String, dynamic>.fromEntries(entryList);
 
-        print("Shuffled tracks: " + shuffledTrackQueue.toString());
+        // print("Shuffled tracks: " + shuffledTrackQueue.toString());
 
         DocumentReference gameRef =
             FirebaseFirestore.instance.collection('games').doc(server_id);

@@ -59,7 +59,7 @@ Future<bool> refreshAccessToken() async {
     await prefs.setString('refreshToken', myRefreshToken!);
     await prefs.setString('expirationDate', tokenExpiration!.toIso8601String());
 
-    print("Token refreshed successfully ✅ -> " + myToken.toString());
+    // print("Token refreshed successfully ✅ -> " + myToken.toString());
     return true;
   } catch (error) {
     print("Failed to refresh token [ERROR: ${error.toString()}]");
@@ -78,7 +78,7 @@ Future<void> loadToken() async {
   }
 
   if (myToken != null) {
-    print("Loaded Spotify Token ✅ -> " + myToken.toString());
+    // print("Loaded Spotify Token ✅ -> " + myToken.toString());
   } else {
     print("No token found, user needs to log in.");
   }
@@ -177,15 +177,15 @@ Future<bool> authenticateUser() async {
   // Check if token is not null and not expired
   if (myToken != null && tokenExpiration != null) {
     if (DateTime.now().isBefore(tokenExpiration!)) {
-      print(
-          "Token is valid and not expired. Proceeding without re-authentication.");
+      // print(
+      //     "Token is valid and not expired. Proceeding without re-authentication.");
       return true;
     } else {
       // Token is expired, attempt to refresh it
       bool refreshed = await refreshAccessToken();
       if (refreshed) {
-        print(
-            "Token successfully refreshed. Proceeding without re-authentication.");
+        // print(
+        //     "Token successfully refreshed. Proceeding without re-authentication.");
         return true;
       }
     }
@@ -229,7 +229,7 @@ Future<bool> authenticateUser() async {
   await prefs.setString('refreshToken', myRefreshToken!);
   await prefs.setString('expirationDate', tokenExpiration!.toIso8601String());
 
-  print("Acquired Spotify Token ✅ -> " + myToken.toString());
+  // print("Acquired Spotify Token ✅ -> " + myToken.toString());
 
   return true;
 }

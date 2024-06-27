@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:queue_quandry/multiplayer.dart';
 import 'package:queue_quandry/pages/home.dart';
@@ -13,6 +14,9 @@ import 'firebase_options.dart';
 late FirestoreController firestoreService;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

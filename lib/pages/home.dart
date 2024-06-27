@@ -82,6 +82,8 @@ class _GamemodeState extends State<Gamemode> {
         return AlertDialog(
           backgroundColor: spotifyGrey,
           surfaceTintColor: Colors.transparent,
+          contentPadding: EdgeInsets.only(top: 15, left: 15, right: 15),
+          actionsPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 15),
           content: SizedBox(
             height: 45,
             child: TextField(
@@ -95,7 +97,8 @@ class _GamemodeState extends State<Gamemode> {
                   ),
                 ),
                 hintText: 'Game code',
-                hintStyle: TextStyle(color: Colors.black),
+                hintStyle:
+                    TextStyle(color: Colors.grey, fontWeight: FontWeight.w400),
                 fillColor: Colors.white,
                 filled: true,
               ),

@@ -47,7 +47,6 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Future<void> _handleLobbySetup() async {
-
     // Execute default local behavior
     if (widget.init == true) {
       // Clear the player list
@@ -90,6 +89,7 @@ class _LobbyPageState extends State<LobbyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        surfaceTintColor: Colors.transparent,
         backgroundColor: spotifyBlack,
         leading: IconButton(
           icon: Icon(
@@ -106,25 +106,50 @@ class _LobbyPageState extends State<LobbyPage> {
           padding: EdgeInsets.only(left: 18, right: 18),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text(
-              'Queue Quandary',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'Contribute anonymously to a playlist. Try to guess who queued each song after they play.',
-              style: TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'Game code: ${widget.gameCode}',
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                  color: spotifyGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 25),
+            Container(
+              alignment: Alignment.centerLeft,
+              padding: EdgeInsets.symmetric(vertical: 15),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${widget.gameCode}',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 50,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      _share();
+                    },
+                    color: spotifyGreen,
+                    child: Container(
+                      child: Row(
+                        children: [
+                          Text(
+                            "Send invite",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500),
+                          ),
+                          SizedBox(
+                            width: 5,
+                          ),
+                          Icon(
+                            Icons.ios_share_outlined,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ],
+                        mainAxisAlignment: MainAxisAlignment.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             SizedBox(
               height: 5,
@@ -168,35 +193,7 @@ class _LobbyPageState extends State<LobbyPage> {
               height: 5,
             ),
             Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    _share();
-                  },
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.2,
-                    child: Row(
-                      children: [
-                        Text(
-                          "Invite",
-                          style: TextStyle(color: Colors.black, fontSize: 18),
-                        ),
-                        SizedBox(
-                          width: 5,
-                        ),
-                        Container(
-                          height: 30,
-                          child: Icon(
-                            Icons.ios_share_outlined,
-                            color: Colors.black,
-                          ),
-                        )
-                      ],
-                      mainAxisAlignment: MainAxisAlignment.center,
-                    ),
-                  ),
-                ),
-              ],
+              children: [],
             ),
             const Spacer(),
             Column(
