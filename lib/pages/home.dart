@@ -87,6 +87,11 @@ class _GamemodeState extends State<Gamemode> {
           content: SizedBox(
             height: 45,
             child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  // Update any state related to the text field here
+                });
+              },
               textAlignVertical: TextAlignVertical.bottom,
               controller: _textController,
               decoration: const InputDecoration(
@@ -109,12 +114,21 @@ class _GamemodeState extends State<Gamemode> {
             Row(
               children: [
                 Expanded(
-                  child: GestureDetector(
+                  child: CupertinoButton(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    onPressed: () async {
+                      await ensureTokenIsValid();
+
+                      navigatorKey.currentState!.push(
+                        MaterialPageRoute(
+                            builder: (context) => LobbyPage(
+                                  gameCode: generateGameCode(),
+                                  init: true,
+                                )),
+                      );
+                    },
+                    color: Colors.white,
                     child: Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.all(Radius.circular(10))),
                       child: Row(
                         children: [
                           Text(
@@ -136,59 +150,46 @@ class _GamemodeState extends State<Gamemode> {
                         mainAxisAlignment: MainAxisAlignment.center,
                       ),
                     ),
-                    onTap: () async {
-                      await ensureTokenIsValid();
-
-                      navigatorKey.currentState!.push(
-                        MaterialPageRoute(
-                            builder: (context) => LobbyPage(
-                                  init: true,
-                                )),
-                      );
-                    },
                   ),
                 ),
                 SizedBox(
-                  width: 7,
+                  width: 10,
                 ),
                 Expanded(
-                  child: GestureDetector(
-                    child: Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: spotifyGreen,
-                          borderRadius: BorderRadius.all(Radius.circular(10))),
-                      child: Row(
-                        children: [
-                          Text(
-                            "Join",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Icon(
-                            Icons.connect_without_contact_rounded,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        ],
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  child: CupertinoButton(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      color: spotifyGreen,
+                      child: Container(
+                        child: Row(
+                          children: [
+                            Text(
+                              "Join",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            SizedBox(
+                              width: 8,
+                            ),
+                            Icon(
+                              Icons.connect_without_contact_rounded,
+                              size: 22,
+                              color: Colors.white,
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
                       ),
-                    ),
-                    onTap: () {
-                      setState(() {
-                        _inputText = _textController.text;
-                        _textController.clear();
-                        _attemptJoinGame(_inputText);
-                      });
+                      onPressed: () {
+                        setState(() {
+                          _inputText = _textController.text;
+                          _textController.clear();
+                          _attemptJoinGame(_inputText);
+                        });
 
-                      Navigator.of(context).pop();
-                    },
-                  ),
+                        Navigator.of(context).pop();
+                      }),
                 )
               ],
             )
@@ -280,14 +281,15 @@ class _GamemodeState extends State<Gamemode> {
                   )
                 ]),
             Spacer(),
-            GestureDetector(
-                onTap: () {
+            CupertinoButton(
+                padding: EdgeInsets.all(0),
+                onPressed: () {
                   _showTextFieldDialog(context);
                 },
                 child: Icon(
                   Icons.play_circle_fill_rounded,
                   color: spotifyGreen,
-                  size: 70,
+                  size: 80,
                 )),
           ])),
     ));

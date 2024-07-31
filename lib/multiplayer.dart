@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:queue_quandry/main.dart';
 import 'package:queue_quandry/pages/game.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'spotify-api.dart';
@@ -24,6 +25,8 @@ String generateGameCode() {
 }
 
 Future<void> initLobby(String gameCode) async {
+  firestoreService.ResetData();
+
   try {
     CollectionReference gamesRef =
         FirebaseFirestore.instance.collection('games');
@@ -42,7 +45,6 @@ Future<void> initLobby(String gameCode) async {
     });
 
     server_id = newGameRef.id;
-    // print('New game created with ID: ${server_id}');
   } catch (e) {
     print('Error creating new game: $e');
   }
@@ -81,6 +83,8 @@ Future<void> addPlayerToServer(String userID) async {
   if (userID == local_client_id) {
     await gameRef.update({'host': local_client_id});
   }
+
+  // downloadPlayerList();
 }
 
 Future<void> removePlayerFromServer(Player playerInstance) async {
@@ -221,6 +225,13 @@ class FirestoreController {
   Map<String, dynamic> previousTrackQueue = {};
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
+
+  void ResetData() {
+    previousPlayerList = {};
+    previousTrackQueue = {};
+    previousGameState = 0;
+    previousSongsPerPlayer = 3;
+  }
 
   Future<void> Host_ShufflePlaybackOrder() async {
     _db.collection('games').doc(server_id).snapshots().listen((snapshot) {

@@ -736,6 +736,7 @@ class _EndPageState extends State<EndPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => LobbyPage(
+                        gameCode: server_id,
                         init: false,
                       ),
                     ),

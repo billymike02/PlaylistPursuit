@@ -29,7 +29,7 @@ class LobbyPage extends StatefulWidget {
   LobbyPage({
     Key? key,
     required this.init,
-    this.gameCode = "",
+    required this.gameCode,
     this.songsPerPlayer = 1,
   }) : super(key: key);
 
@@ -41,8 +41,6 @@ class _LobbyPageState extends State<LobbyPage> {
   bool bIsHost = false;
 
   Future<void> _createLobby() async {
-    widget.gameCode = generateGameCode();
-
     await initLobby(widget.gameCode);
   }
 
@@ -55,10 +53,7 @@ class _LobbyPageState extends State<LobbyPage> {
 
       await _createLobby();
     }
-    // Execute remote behavior
-    else if (widget.gameCode != "") {
-      print("loading a lobby...");
-    }
+
     await _getHostingStatus();
     firestoreService.listenForChanges();
   }
@@ -75,7 +70,7 @@ class _LobbyPageState extends State<LobbyPage> {
       bIsHost = true;
     }
 
-    setState(() {});
+    // setState(() {});
   }
 
   void removePlayer(Player playerInstance) {
@@ -87,6 +82,7 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Widget build(BuildContext context) {
+    // print("Local client: $local_client_id Room code: ${widget.gameCode}");
     return Scaffold(
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
@@ -120,34 +116,78 @@ class _LobbyPageState extends State<LobbyPage> {
                         fontSize: 50,
                         fontWeight: FontWeight.bold),
                   ),
-                  CupertinoButton(
-                    onPressed: () {
-                      _share();
-                    },
-                    color: spotifyGreen,
-                    child: Container(
-                      child: Row(
-                        children: [
-                          Text(
-                            "Send invite",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoButton(
+                          onPressed: () {
+                            _share();
+                          },
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 15),
+                          color: spotifyGreen,
+                          child: Container(
+                            child: Row(
+                              children: [
+                                Text(
+                                  "Invite",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                SizedBox(
+                                  width: 5,
+                                ),
+                                Icon(
+                                  Icons.ios_share_outlined,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ],
+                              mainAxisAlignment: MainAxisAlignment.center,
+                            ),
                           ),
-                          SizedBox(
-                            width: 5,
-                          ),
-                          Icon(
-                            Icons.ios_share_outlined,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ],
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        ),
                       ),
-                    ),
-                  ),
+                      SizedBox(
+                        width: 7,
+                      ),
+                      if (bIsHost)
+                        Expanded(
+                          child: CupertinoButton(
+                            onPressed: () {
+                              _share();
+                            },
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 15),
+                            color: Colors.white,
+                            child: Container(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    "Settings",
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  SizedBox(
+                                    width: 5,
+                                  ),
+                                  Icon(
+                                    Icons.settings,
+                                    size: 20,
+                                    color: Colors.black,
+                                  ),
+                                ],
+                                mainAxisAlignment: MainAxisAlignment.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
                 ],
               ),
             ),
@@ -200,34 +240,34 @@ class _LobbyPageState extends State<LobbyPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (bIsHost)
-                    Column(
-                      children: [
-                        const Text(
-                          "Songs Per Player",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 18),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 5,
-                              right: MediaQuery.of(context).size.width * 0.7),
-                          child: _buildDropdown(
-                            'Songs Per Player',
-                            songsPerPlayer,
-                            (value) {
-                              setState(() {
-                                songsPerPlayer = value!;
+                  // if (bIsHost)
+                  //   Column(
+                  //     children: [
+                  //       const Text(
+                  //         "Songs Per Player",
+                  //         style: TextStyle(
+                  //             color: Colors.white,
+                  //             fontWeight: FontWeight.w600,
+                  //             fontSize: 18),
+                  //       ),
+                  //       Padding(
+                  //         padding: EdgeInsets.only(
+                  //             top: 5,
+                  //             right: MediaQuery.of(context).size.width * 0.7),
+                  //         child: _buildDropdown(
+                  //           'Songs Per Player',
+                  //           songsPerPlayer,
+                  //           (value) {
+                  //             setState(() {
+                  //               songsPerPlayer = value!;
 
-                                firestoreService.setSongsPerPlayer(value);
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                  //               firestoreService.setSongsPerPlayer(value);
+                  //             });
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
@@ -236,15 +276,15 @@ class _LobbyPageState extends State<LobbyPage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                ElevatedButton(
+                                CupertinoButton(
+                                  color: spotifyPurple,
                                   onPressed: () {
                                     _setQueueingState();
 
                                     navigateToQueueingPage();
                                   },
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: spotifyPurple,
-                                      minimumSize: Size(150, 50)),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
                                   child: const Text(
                                     'Continue',
                                     style: TextStyle(
@@ -266,10 +306,6 @@ class _LobbyPageState extends State<LobbyPage> {
                   )
                 ]),
           ])),
-      // Container(
-      //   decoration: BoxDecoration(color: Colors.red),
-      //   height: MediaQuery.of(context).size.height * 0.2,
-      // ),
     );
   }
 
@@ -867,8 +903,10 @@ class _PlayerListingState extends State<PlayerListing> {
           // Enable the kicking option if it's allowed for the player
 
           if (enableKicking)
-            GestureDetector(
-              onTap: () {
+            CupertinoButton(
+              padding: EdgeInsets.all(0),
+              minSize: 0,
+              onPressed: () {
                 showCupertinoDialog(
                   context: context,
                   builder: (context) {
