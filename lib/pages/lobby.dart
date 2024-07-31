@@ -157,7 +157,12 @@ class _LobbyPageState extends State<LobbyPage> {
                         Expanded(
                           child: CupertinoButton(
                             onPressed: () {
-                              _share();
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return BottomSheetSlider(); // Use the new stateful widget
+                                },
+                              );
                             },
                             padding: EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 15),
@@ -317,6 +322,76 @@ class _LobbyPageState extends State<LobbyPage> {
     final result = await Share.share(
         'Here\'s my game code for Playlist Pursuit: ${widget.gameCode}',
         subject: "Invite to Game");
+  }
+}
+
+class BottomSheetSlider extends StatefulWidget {
+  @override
+  _BottomSheetSliderState createState() => _BottomSheetSliderState();
+}
+
+class _BottomSheetSliderState extends State<BottomSheetSlider> {
+  double _currentSliderValue = songsPerPlayer.toDouble();
+  String? _sliderStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        width: MediaQuery.of(context).size.width,
+        color: spotifyGrey, // Add your specific color
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lobby Settings',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 10.0),
+              Text(
+                'Songs per player: ${_currentSliderValue.toInt()}',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              // Display the current slider value.
+              Container(
+                width: MediaQuery.of(context).size.width,
+                child: CupertinoSlider(
+                  key: const Key('slider'),
+                  value: _currentSliderValue,
+                  // This allows the slider to jump between divisions.
+                  // If null, the slide movement is continuous.
+                  divisions: 9,
+                  // The maximum slider value
+                  max: 10,
+                  min: 1,
+                  activeColor: spotifyGreen,
+                  thumbColor: spotifyGreen,
+                  // This is called when sliding is started.
+                  // This is called when slider value is changed.
+                  onChanged: (double value) {
+                    setState(() {
+                      _currentSliderValue = value;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
