@@ -39,7 +39,13 @@ class _GuessingPageState extends State<GuessingPage> {
     String new_song = playbackQueue.removeAt(0);
 
     var data = await getTrackInfo(new_song);
-    await playTrack(new_song);
+    int play_result = await playTrack(new_song);
+
+    if (play_result != 0) {
+      print("NO ACTIVE PLAYBACK DEVICE");
+
+      return;
+    }
 
     songName = data['name'];
 
@@ -60,7 +66,6 @@ class _GuessingPageState extends State<GuessingPage> {
     }
 
     playbackQueue = [...songQueue.value];
-    print("Playback Queue: $playbackQueue");
 
     getNewTrack();
   }

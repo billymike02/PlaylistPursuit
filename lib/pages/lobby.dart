@@ -647,9 +647,6 @@ class _QueuePageState extends State<QueuePage> {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
-                      print(
-                          "Songs queued: ${songQueue.value.length} songs required: $start_requirment}");
-
                       if (songQueue.value.length >= start_requirment) {
                         return Center(
                           child: ElevatedButton(

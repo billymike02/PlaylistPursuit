@@ -266,7 +266,7 @@ Future<String?> getActiveDevice() async {
   }
 }
 
-Future<void> playTrack(String track_id) async {
+Future<int> playTrack(String track_id) async {
   await ensureTokenIsValid();
 
   String? deviceId = await getActiveDevice();
@@ -285,8 +285,9 @@ Future<void> playTrack(String track_id) async {
   );
 
   if (response.statusCode == 204) {
+    return 0;
   } else {
-    throw Exception('Failed to play song: ${response.reasonPhrase}');
+    return -1;
   }
 }
 
