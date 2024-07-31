@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:oauth2_client/access_token_response.dart';
+import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/styles.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'dart:async';
@@ -7,6 +10,8 @@ import '../credentials.dart';
 import 'lobby.dart';
 import 'package:oauth2_client/spotify_oauth2_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase_options.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 const scope = 'user-read-private user-read-email';
 
@@ -54,7 +59,7 @@ Future<bool> refreshAccessToken() async {
     await prefs.setString('refreshToken', myRefreshToken!);
     await prefs.setString('expirationDate', tokenExpiration!.toIso8601String());
 
-    print("Token refreshed successfully ✅ -> " + myToken.toString());
+    // print("Token refreshed successfully ✅ -> " + myToken.toString());
     return true;
   } catch (error) {
     print("Failed to refresh token [ERROR: ${error.toString()}]");
@@ -73,7 +78,7 @@ Future<void> loadToken() async {
   }
 
   if (myToken != null) {
-    print("Loaded Spotify Token ✅ -> " + myToken.toString());
+    // print("Loaded Spotify Token ✅ -> " + myToken.toString());
   } else {
     print("No token found, user needs to log in.");
   }
@@ -89,6 +94,11 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   String loginMessage = 'Connect to Spotify';
   String debugMessage = 'DEBUG';
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                           (value) => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => LobbyPage(
-                                    reset: true,
-                                  ),
+                                  builder: (context) => HomePage(),
                                 ),
                               ), onError: (error) {
                         print(
@@ -161,65 +169,67 @@ class _LoginPageState extends State<LoginPage> {
     await SpotifySdk.connectToSpotifyRemote(
         clientId: spotifyClientId, redirectUrl: spotifyRedirectUri);
   }
+}
 
-  Future<void> authenticateUser() async {
-    await loadToken();
+Future<bool> authenticateUser() async {
+  await loadToken();
 
-    // Check if token is not null and not expired
-    if (myToken != null && tokenExpiration != null) {
-      if (DateTime.now().isBefore(tokenExpiration!)) {
-        print(
-            "Token is valid and not expired. Proceeding without re-authentication.");
-        return;
-      } else {
-        // Token is expired, attempt to refresh it
-        bool refreshed = await refreshAccessToken();
-        if (refreshed) {
-          print(
-              "Token successfully refreshed. Proceeding without re-authentication.");
-          return;
-        }
+  // Check if token is not null and not expired
+  if (myToken != null && tokenExpiration != null) {
+    if (DateTime.now().isBefore(tokenExpiration!)) {
+      // print(
+      //     "Token is valid and not expired. Proceeding without re-authentication.");
+      return true;
+    } else {
+      // Token is expired, attempt to refresh it
+      bool refreshed = await refreshAccessToken();
+      if (refreshed) {
+        // print(
+        //     "Token successfully refreshed. Proceeding without re-authentication.");
+        return true;
       }
     }
-
-    // Proceed with re-authentication if no valid token or refresh failed
-    AccessTokenResponse? accessToken;
-    SpotifyOAuth2Client client = SpotifyOAuth2Client(
-      customUriScheme: 'com.playlistpursuit',
-      redirectUri: spotifyRedirectUri,
-    );
-
-    var authResp = await client
-        .requestAuthorization(clientId: spotifyClientId, customParams: {
-      'show_dialog': 'true'
-    }, scopes: [
-      'user-read-private',
-      'user-read-playback-state',
-      'user-modify-playback-state',
-      'user-read-currently-playing',
-      'user-read-email',
-      'user-top-read',
-      'playlist-modify-public',
-      'playlist-modify-private',
-    ]);
-    var authCode = authResp.code;
-
-    accessToken = await client.requestAccessToken(
-        code: authCode.toString(),
-        clientId: spotifyClientId,
-        clientSecret: spotifyClientSecret);
-
-    // Global variables
-    myToken = accessToken.accessToken;
-    myRefreshToken = accessToken.refreshToken;
-    tokenExpiration = accessToken.expirationDate;
-
-    // Save tokens to shared preferences
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('accessToken', myToken!);
-    await prefs.setString('refreshToken', myRefreshToken!);
-    await prefs.setString('expirationDate', tokenExpiration!.toIso8601String());
-
-    print("Acquired Spotify Token ✅ -> " + myToken.toString());
   }
+
+  // Proceed with re-authentication if no valid token or refresh failed
+  AccessTokenResponse? accessToken;
+  SpotifyOAuth2Client client = SpotifyOAuth2Client(
+    customUriScheme: 'com.playlistpursuit',
+    redirectUri: spotifyRedirectUri,
+  );
+
+  var authResp = await client
+      .requestAuthorization(clientId: spotifyClientId, customParams: {
+    'show_dialog': 'true'
+  }, scopes: [
+    'user-read-private',
+    'user-read-playback-state',
+    'user-modify-playback-state',
+    'user-read-currently-playing',
+    'user-read-email',
+    'user-top-read',
+    'playlist-modify-public',
+    'playlist-modify-private',
+  ]);
+  var authCode = authResp.code;
+
+  accessToken = await client.requestAccessToken(
+      code: authCode.toString(),
+      clientId: spotifyClientId,
+      clientSecret: spotifyClientSecret);
+
+  // Global variables
+  myToken = accessToken.accessToken;
+  myRefreshToken = accessToken.refreshToken;
+  tokenExpiration = accessToken.expirationDate;
+
+  // Save tokens to shared preferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setString('accessToken', myToken!);
+  await prefs.setString('refreshToken', myRefreshToken!);
+  await prefs.setString('expirationDate', tokenExpiration!.toIso8601String());
+
+  // print("Acquired Spotify Token ✅ -> " + myToken.toString());
+
+  return true;
 }

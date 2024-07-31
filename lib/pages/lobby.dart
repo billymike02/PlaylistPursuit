@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
+import 'package:spotify_sdk/models/player_options.dart';
 import 'game.dart';
 import 'dart:async';
 import 'package:share_plus/share_plus.dart';
@@ -10,35 +13,24 @@ import 'dart:convert';
 import '../spotify-api.dart';
 import '../main.dart';
 import 'package:logger/logger.dart';
+import 'package:queue_quandry/multiplayer.dart';
 
-ValueNotifier<List<MyPlayer>> playerList = ValueNotifier<List<MyPlayer>>([]);
-List<String> songQueue = [];
+// Define a GlobalKey<NavigatorState>
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 int songsPerPlayer = 3;
-ValueNotifier<int> songsAdded = ValueNotifier<int>(0);
 List<String> playbackQueue = [];
-
-String localUserID = "DefaultUser";
-
-Future<String> getLocalUserID() async {
-  final response = await http.get(
-    Uri.parse('https://api.spotify.com/v1/me'),
-    headers: {
-      'Authorization': 'Bearer $myToken',
-    },
-  );
-
-  return json.decode(response.body)['id'];
-}
 
 class LobbyPage extends StatefulWidget {
   final int songsPerPlayer;
-  final bool reset;
+  final bool init;
+  late String gameCode;
 
-  const LobbyPage({
+  LobbyPage({
     Key? key,
+    required this.init,
+    required this.gameCode,
     this.songsPerPlayer = 1,
-    required this.reset,
   }) : super(key: key);
 
   @override
@@ -46,92 +38,53 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
-  Future<void> addLocalPlayer() async {
-    localUserID = await getLocalUserID();
+  bool bIsHost = false;
 
-    playerList.value.add(MyPlayer(localUserID));
+  Future<void> _createLobby() async {
+    await initLobby(widget.gameCode);
   }
 
-  void addHeadlessPlayer(String id) {
-    playerList.value.add(MyPlayer(id));
-  }
+  Future<void> _handleLobbySetup() async {
+    // Execute default local behavior
+    if (widget.init == true) {
+      // Clear the player list
+      bIsHost = true;
+      playerList.value.clear();
 
-  void addRemotePlayer(String incomingID) {
-    playerList.value.add(MyPlayer(incomingID));
-  }
+      await _createLobby();
+    }
 
-  void resetLobby() {
-    playerList.value.clear();
+    await _getHostingStatus();
+    firestoreService.listenForChanges();
   }
 
   @override
   void initState() {
     super.initState();
 
-    // reset the lobby
-    if (widget.reset) resetLobby();
-
-    _initAllPlayers();
+    _handleLobbySetup();
   }
 
-  void removePlayer(MyPlayer playerInstance) {
-    String display_name = playerInstance.display_name;
+  Future<void> _getHostingStatus() async {
+    if (await isHost(local_client_id) == true) {
+      bIsHost = true;
+    }
 
-    playerList.value.remove(playerInstance);
+    // setState(() {});
+  }
 
-    print("🔴 Removed player $display_name from lobby.");
+  void removePlayer(Player playerInstance) {
+    removePlayerFromServer(playerInstance);
+
+    print("🔴 Removed player ${playerInstance.user_id} from lobby.");
 
     playerList.notifyListeners();
-  }
-
-  Future<void> _initAllPlayers() async {
-    print("init all players");
-
-    // populate the lobby
-    await addLocalPlayer();
-    addHeadlessPlayer('abrawolf');
-    addHeadlessPlayer('tommyryan2002');
-    addHeadlessPlayer('nickwaizenegger');
-
-    await Future.forEach(playerList.value, (MyPlayer instance) async {
-      if (!instance.isInitialized) {
-        await instance.initPlayer();
-        String display_name = instance.display_name;
-        print("🟢 Player $display_name joined lobby.");
-
-        playerList.notifyListeners();
-      }
-    });
-
-    setState(() {});
-  }
-
-  Widget _createAllPlayerListings() {
-    return ListView.builder(
-      shrinkWrap: true,
-      padding: EdgeInsets.all(0),
-      itemCount: playerList.value.length,
-      itemBuilder: (BuildContext context, int index) {
-        final playerInstance = playerList.value[index];
-
-        if (playerInstance.isInitialized == false) {
-          return Container();
-        }
-
-        return Padding(
-          padding: EdgeInsets.only(top: 6, bottom: 6),
-          child: PlayerListing(
-            playerInstance: playerInstance,
-            onRemove: removePlayer,
-          ),
-        );
-      },
-    );
   }
 
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        surfaceTintColor: Colors.transparent,
         backgroundColor: spotifyBlack,
         leading: IconButton(
           icon: Icon(
@@ -148,32 +101,106 @@ class _LobbyPageState extends State<LobbyPage> {
           padding: EdgeInsets.only(left: 18, right: 18),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text(
-              'Queue Quandary',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'Contribute anonymously to a playlist. Try to guess who queued each song after they play.',
-              style: TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              'Manage players',
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                  color: spotifyGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 25),
+            Container(
+              alignment: Alignment.centerLeft,
+              padding: EdgeInsets.symmetric(vertical: 15),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${widget.gameCode}',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 50,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoButton(
+                          onPressed: () {
+                            _share();
+                          },
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 15),
+                          color: spotifyGreen,
+                          child: Container(
+                            child: Row(
+                              children: [
+                                Text(
+                                  "Invite",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                SizedBox(
+                                  width: 5,
+                                ),
+                                Icon(
+                                  Icons.ios_share_outlined,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ],
+                              mainAxisAlignment: MainAxisAlignment.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 7,
+                      ),
+                      if (bIsHost)
+                        Expanded(
+                          child: CupertinoButton(
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return BottomSheetSlider(); // Use the new stateful widget
+                                },
+                              );
+                            },
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 15),
+                            color: Colors.white,
+                            child: Container(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    "Settings",
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  SizedBox(
+                                    width: 5,
+                                  ),
+                                  Icon(
+                                    Icons.settings,
+                                    size: 20,
+                                    color: Colors.black,
+                                  ),
+                                ],
+                                mainAxisAlignment: MainAxisAlignment.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                ],
+              ),
             ),
             SizedBox(
               height: 5,
             ),
             SizedBox(
                 height: MediaQuery.of(context).size.height * 0.30,
-                child: ValueListenableBuilder<List<MyPlayer>>(
+                child: ValueListenableBuilder<List<Player>>(
                   valueListenable: playerList,
                   builder: (context, value, child) {
                     if (value.length < 1) {
@@ -187,6 +214,7 @@ class _LobbyPageState extends State<LobbyPage> {
                     }
 
                     return ListView.builder(
+                      key: UniqueKey(),
                       itemCount: value.length,
                       itemBuilder: (context, index) {
                         final playerInstance = playerList.value[index];
@@ -194,7 +222,6 @@ class _LobbyPageState extends State<LobbyPage> {
                         if (playerInstance.isInitialized == false) {
                           return Container();
                         }
-
                         return Padding(
                           padding: EdgeInsets.only(top: 6, bottom: 6),
                           child: PlayerListing(
@@ -209,104 +236,163 @@ class _LobbyPageState extends State<LobbyPage> {
             SizedBox(
               height: 5,
             ),
-            ElevatedButton(
-              onPressed: () {
-                _share();
-              },
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.25,
-                child: Row(
-                  children: [
-                    Text(
-                      "Invite",
-                      style: TextStyle(color: Colors.black, fontSize: 18),
-                    ),
-                    SizedBox(
-                      width: 5,
-                    ),
-                    Container(
-                      height: 30,
-                      child: Icon(
-                        Icons.ios_share_outlined,
-                        color: Colors.black,
-                      ),
-                    )
-                  ],
-                  mainAxisAlignment: MainAxisAlignment.center,
-                ),
-              ),
+            Row(
+              children: [],
             ),
             const Spacer(),
             Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Songs Per Player",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(
-                        top: 5, right: MediaQuery.of(context).size.width * 0.7),
-                    child: _buildDropdown(
-                      'Songs Per Player',
-                      songsPerPlayer,
-                      (value) {
-                        setState(() {
-                          songsPerPlayer = value!;
-                        });
-                      },
-                    ),
-                  ),
-                  if (playerList.value.length > 1)
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => QueuePage(
-                                    songsPerPlayer: songsPerPlayer,
+                  // if (bIsHost)
+                  //   Column(
+                  //     children: [
+                  //       const Text(
+                  //         "Songs Per Player",
+                  //         style: TextStyle(
+                  //             color: Colors.white,
+                  //             fontWeight: FontWeight.w600,
+                  //             fontSize: 18),
+                  //       ),
+                  //       Padding(
+                  //         padding: EdgeInsets.only(
+                  //             top: 5,
+                  //             right: MediaQuery.of(context).size.width * 0.7),
+                  //         child: _buildDropdown(
+                  //           'Songs Per Player',
+                  //           songsPerPlayer,
+                  //           (value) {
+                  //             setState(() {
+                  //               songsPerPlayer = value!;
+
+                  //               firestoreService.setSongsPerPlayer(value);
+                  //             });
+                  //           },
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  ValueListenableBuilder<List<Player>>(
+                      valueListenable: playerList,
+                      builder: (context, value, child) {
+                        if (playerList.value.length > 1 && bIsHost) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                CupertinoButton(
+                                  color: spotifyPurple,
+                                  onPressed: () {
+                                    _setQueueingState();
+
+                                    navigateToQueueingPage();
+                                  },
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
+                                  child: const Text(
+                                    'Continue',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 20,
+                                        fontFamily: 'Gotham'),
                                   ),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF9d40e3),
-                                minimumSize: Size(150, 50)),
-                            child: const Text(
-                              'Continue',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 20,
-                                  fontFamily: 'Gotham'),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          );
+                        }
+
+                        return Container();
+                      }),
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.05,
                   )
                 ]),
           ])),
-      // Container(
-      //   decoration: BoxDecoration(color: Colors.red),
-      //   height: MediaQuery.of(context).size.height * 0.2,
-      // ),
     );
   }
 
+  Future<void> _setQueueingState() async {
+    await firestoreService.Host_SetGameState(1);
+  }
+
   void _share() async {
-    final result = await Share.share('check out my website https://example.com',
+    final result = await Share.share(
+        'Here\'s my game code for Playlist Pursuit: ${widget.gameCode}',
         subject: "Invite to Game");
+  }
+}
+
+class BottomSheetSlider extends StatefulWidget {
+  @override
+  _BottomSheetSliderState createState() => _BottomSheetSliderState();
+}
+
+class _BottomSheetSliderState extends State<BottomSheetSlider> {
+  double _currentSliderValue = songsPerPlayer.toDouble();
+  String? _sliderStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        width: MediaQuery.of(context).size.width,
+        color: spotifyGrey, // Add your specific color
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lobby Settings',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 10.0),
+              Text(
+                'Songs per player: ${_currentSliderValue.toInt()}',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              // Display the current slider value.
+              Container(
+                width: MediaQuery.of(context).size.width,
+                child: CupertinoSlider(
+                  key: const Key('slider'),
+                  value: _currentSliderValue,
+                  // This allows the slider to jump between divisions.
+                  // If null, the slide movement is continuous.
+                  divisions: 9,
+                  // The maximum slider value
+                  max: 10,
+                  min: 1,
+                  activeColor: spotifyGreen,
+                  thumbColor: spotifyGreen,
+                  // This is called when sliding is started.
+                  // This is called when slider value is changed.
+                  onChanged: (double value) {
+                    setState(() {
+                      _currentSliderValue = value;
+                    });
+
+                    firestoreService.setSongsPerPlayer(value.toInt());
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -350,8 +436,14 @@ DropdownButtonFormField<int> _buildDropdown(
 
 class QueuePage extends StatefulWidget {
   final int songsPerPlayer;
+  final String gameCode;
 
-  const QueuePage({Key? key, required this.songsPerPlayer}) : super(key: key);
+  const QueuePage(
+      {Key? key,
+      required this.songsPerPlayer,
+      required this.gameCode,
+      required})
+      : super(key: key);
 
   @override
   _QueuePageState createState() => _QueuePageState();
@@ -363,19 +455,24 @@ class _QueuePageState extends State<QueuePage> {
   bool isSearching = false;
   Future<List<String>>? _fetchTopSongsFuture;
   Future<List<String>>? _searchedSongs;
+  late bool bIsHost = false;
 
   Future<List<String>> fetchTopSongs() async {
     return await getTopTracks(myToken);
+  }
+
+  Future<void> _getHostingStatus() async {
+    bIsHost = await isHost(local_client_id);
   }
 
   @override
   void initState() {
     super.initState();
 
-    songsAdded.value = 0;
-    songQueue = [];
     playbackQueue = [];
     _fetchTopSongsFuture = fetchTopSongs();
+
+    _getHostingStatus();
   }
 
   Future<void> _search(String query) async {
@@ -488,9 +585,8 @@ class _QueuePageState extends State<QueuePage> {
                                   return Padding(
                                     padding: EdgeInsets.only(bottom: 8),
                                     child: SongListing(
+                                      gameCode: widget.gameCode,
                                       track: Track(snapshot.data![index]),
-                                      onIncrement: incrementSongsAdded,
-                                      onDecrement: decrementSongsAdded,
                                     ),
                                   );
                                 });
@@ -523,9 +619,8 @@ class _QueuePageState extends State<QueuePage> {
                                 return Padding(
                                   padding: EdgeInsets.only(bottom: 8),
                                   child: SongListing(
+                                    gameCode: widget.gameCode,
                                     track: Track(snapshot.data![index]),
-                                    onIncrement: incrementSongsAdded,
-                                    onDecrement: decrementSongsAdded,
                                   ),
                                 );
                               },
@@ -538,52 +633,78 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder(
-                valueListenable: songsAdded,
+            ValueListenableBuilder<List<String>>(
+                valueListenable: songQueue,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
                     bool _enableButton = false; // true jsut for debug
 
-                    if (widget.songsPerPlayer - songsAdded.value <= 0) {
+                    if (widget.songsPerPlayer - songQueue.value.length <= 0) {
                       _enableButton = true;
                     }
 
-                    if (_enableButton) {
-                      return Center(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            playbackQueue = [...songQueue];
+                    if (_enableButton && bIsHost) {
+                      int start_requirment =
+                          playerList.value.length * songsPerPlayer;
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => GuessingPage()),
-                            );
-                          },
-                          child: Text(
-                            "Start Game",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 25, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                      print(
+                          "Songs queued: ${songQueue.value.length} songs required: $start_requirment}");
+
+                      if (songQueue.value.length >= start_requirment) {
+                        return Center(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              firestoreService.Host_SetGameState(2);
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => GuessingPage()),
+                              );
+                            },
+                            child: Text(
+                              "Start Game",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20),
                             ),
-                            backgroundColor: spotifyGreen,
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 25, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30.0),
+                              ),
+                              backgroundColor: spotifyGreen,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        return Center(
+                            child: Text(
+                          "Waiting for other players.",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ));
+                      }
                     } else {
+                      int remainingSongs =
+                          widget.songsPerPlayer - songQueue.value.length;
+
+                      String message = "";
+
+                      if (remainingSongs > 0)
+                        message =
+                            "Add " + remainingSongs.toString() + " more songs";
+                      else
+                        message = "Waiting for host.";
+
                       return Center(
                           child: Text(
-                        "Add " +
-                            (widget.songsPerPlayer - songsAdded.value)
-                                .toString() +
-                            " more songs",
+                        message,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -599,25 +720,16 @@ class _QueuePageState extends State<QueuePage> {
       ),
     );
   }
-
-  void incrementSongsAdded() {
-    songsAdded.value++;
-  }
-
-  void decrementSongsAdded() {
-    songsAdded.value--;
-  }
 }
 
 class SongListing extends StatefulWidget {
   final Track track;
-  final Function()? onIncrement;
-  final Function()? onDecrement;
+
+  final String gameCode;
 
   SongListing({
     required this.track,
-    this.onIncrement,
-    this.onDecrement,
+    required this.gameCode,
   });
 
   @override
@@ -631,9 +743,27 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (songQueue.contains(widget.track.track_id)) {
+    if (songQueue.value.contains(widget.track.track_id)) {
       isChecked.value = true;
     }
+  }
+
+  Future<void> _firestoreAddSong() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
+
+    await gameRef
+        .update({'queued_tracks.${widget.track.track_id}': local_client_id});
+
+    await firestoreService.Host_ShufflePlaybackOrder();
+  }
+
+  Future<void> _firestoreRemoveSong() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
+
+    await gameRef.update(
+        {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
   }
 
   @override
@@ -691,7 +821,7 @@ class _SongListingState extends State<SongListing> {
                 GestureDetector(
                     onTap: () {
                       if (!isChecked.value &&
-                          songsAdded.value + 1 > songsPerPlayer) {
+                          songQueue.value.length + 1 > songsPerPlayer) {
                         showCupertinoDialog(
                           context: context,
                           builder: (BuildContext context) {
@@ -717,11 +847,15 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
-                        songQueue.add(widget.track.track_id);
-                        widget.onIncrement?.call();
+                        songQueue.value = List.from(songQueue.value)
+                          ..add(widget.track.track_id);
+
+                        _firestoreAddSong();
                       } else {
-                        songQueue.remove(widget.track.track_id);
-                        widget.onDecrement?.call();
+                        songQueue.value = List.from(songQueue.value)
+                          ..remove(widget.track.track_id);
+
+                        _firestoreRemoveSong();
                       }
                     },
                     child: ValueListenableBuilder<bool>(
@@ -754,8 +888,8 @@ class _SongListingState extends State<SongListing> {
 }
 
 class PlayerListing extends StatefulWidget {
-  final MyPlayer playerInstance;
-  final Function(MyPlayer)? onRemove;
+  final Player playerInstance;
+  final Function(Player)? onRemove;
 
   PlayerListing({
     required this.playerInstance,
@@ -768,20 +902,30 @@ class PlayerListing extends StatefulWidget {
 
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
+  bool bIsHost = false;
+
+  /// Enables the option to kick a player if you're the host and the player is not yourself.
+  Future<void> _setKicking() async {
+    // if the user is remote and the local user is the host then able kicking
+    if (widget.playerInstance.user_id != local_client_id &&
+        await isHost(local_client_id)) {
+      enableKicking = true;
+    }
+
+    if (await isHost(widget.playerInstance.user_id)) {
+      bIsHost = true;
+
+      // print(widget.playerInstance.user_id + "is given host icon");
+    }
+
+    setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
 
-    bool isRemote = (localUserID != widget.playerInstance.user_id);
-
-    setState(() {
-      if (isRemote) {
-        enableKicking = true;
-      } else {
-        enableKicking = false;
-      }
-    });
+    _setKicking();
   }
 
   @override
@@ -815,60 +959,78 @@ class _PlayerListingState extends State<PlayerListing> {
             ),
           ),
 
+          if (bIsHost)
+            GestureDetector(
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                ),
+                child: Icon(
+                  Icons.phone_iphone_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+
           // Enable the kicking option if it's allowed for the player
 
-          enableKicking
-              ? GestureDetector(
-                  onTap: () {
-                    showCupertinoDialog(
-                      context: context,
-                      builder: (context) {
-                        return CupertinoAlertDialog(
-                          title: Text("Confirm"),
-                          content: Text(
-                              "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
-                          actions: [
-                            CupertinoDialogAction(
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.blueAccent),
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: Text(
-                                "Kick",
-                                style: TextStyle(color: Colors.redAccent),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  widget.onRemove?.call(widget.playerInstance);
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
-                        );
-                      },
+          if (enableKicking)
+            CupertinoButton(
+              padding: EdgeInsets.all(0),
+              minSize: 0,
+              onPressed: () {
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) {
+                    return CupertinoAlertDialog(
+                      title: Text("Confirm"),
+                      content: Text(
+                          "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
+                      actions: [
+                        CupertinoDialogAction(
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(color: Colors.blueAccent),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        CupertinoDialogAction(
+                          child: Text(
+                            "Kick",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              widget.onRemove?.call(widget.playerInstance);
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
                     );
                   },
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.transparent,
-                    ),
-                    child: Icon(
-                      Icons.remove_circle_outline_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                )
-              : SizedBox.shrink()
+                );
+              },
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                ),
+                child: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            )
         ],
       ),
     );
