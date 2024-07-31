@@ -119,10 +119,18 @@ class _GamemodeState extends State<Gamemode> {
                     onPressed: () async {
                       await ensureTokenIsValid();
 
+                      String gameCode;
+
+                      try {
+                        gameCode = server_id;
+                      } catch (e) {
+                        gameCode = generateGameCode();
+                      }
+
                       navigatorKey.currentState!.push(
                         MaterialPageRoute(
                             builder: (context) => LobbyPage(
-                                  gameCode: generateGameCode(),
+                                  gameCode: gameCode,
                                   init: true,
                                 )),
                       );

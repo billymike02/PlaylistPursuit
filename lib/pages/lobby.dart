@@ -82,7 +82,6 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Widget build(BuildContext context) {
-    // print("Local client: $local_client_id Room code: ${widget.gameCode}");
     return Scaffold(
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
@@ -384,6 +383,8 @@ class _BottomSheetSliderState extends State<BottomSheetSlider> {
                     setState(() {
                       _currentSliderValue = value;
                     });
+
+                    firestoreService.setSongsPerPlayer(value.toInt());
                   },
                 ),
               ),
