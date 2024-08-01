@@ -164,11 +164,6 @@ class _LoginPageState extends State<LoginPage> {
                   )
                 ]))));
   }
-
-  Future<void> alternativeAuth() async {
-    await SpotifySdk.connectToSpotifyRemote(
-        clientId: spotifyClientId, redirectUrl: spotifyRedirectUri);
-  }
 }
 
 Future<bool> authenticateUser() async {

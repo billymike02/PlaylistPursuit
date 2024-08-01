@@ -360,3 +360,33 @@ Future<void> addTracksToPlaylist(String playlistId) async {
     }),
   );
 }
+
+Future<bool> linkSpotifyApp() async {
+  bool res = await SpotifySdk.connectToSpotifyRemote(
+      clientId: spotifyClientId, redirectUrl: spotifyRedirectUri);
+
+  return res;
+}
+
+Future<void> getSmartphone() async {
+  final url = Uri.parse('https://api.spotify.com/v1/me/player/devices');
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Bearer $myToken',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final devices = json.decode(response.body)['devices'];
+    for (var device in devices) {
+      if (device['type'] == "Smartphone") {
+        print("Smartphone with ID: ${device['id']}");
+      }
+    }
+  } else {
+    print('Error: ${response.reasonPhrase}');
+  }
+}

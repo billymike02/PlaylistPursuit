@@ -22,6 +22,7 @@ class GuessingPage extends StatefulWidget {
 
 class _GuessingPageState extends State<GuessingPage> {
   bool _trackDataLoaded = false;
+
   // Fields (to be mutated by Spotify API)
   late String songName;
   late String songArtist;
@@ -39,13 +40,8 @@ class _GuessingPageState extends State<GuessingPage> {
     String new_song = playbackQueue.removeAt(0);
 
     var data = await getTrackInfo(new_song);
-    int play_result = await playTrack(new_song);
 
-    if (play_result != 0) {
-      print("NO ACTIVE PLAYBACK DEVICE");
-
-      return;
-    }
+    await playTrack(new_song);
 
     songName = data['name'];
 

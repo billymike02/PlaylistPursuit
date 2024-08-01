@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
 import 'package:spotify_sdk/models/player_options.dart';
+import 'package:spotify_sdk/spotify_sdk.dart';
 import 'game.dart';
 import 'dart:async';
 import 'package:share_plus/share_plus.dart';
@@ -244,34 +246,6 @@ class _LobbyPageState extends State<LobbyPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // if (bIsHost)
-                  //   Column(
-                  //     children: [
-                  //       const Text(
-                  //         "Songs Per Player",
-                  //         style: TextStyle(
-                  //             color: Colors.white,
-                  //             fontWeight: FontWeight.w600,
-                  //             fontSize: 18),
-                  //       ),
-                  //       Padding(
-                  //         padding: EdgeInsets.only(
-                  //             top: 5,
-                  //             right: MediaQuery.of(context).size.width * 0.7),
-                  //         child: _buildDropdown(
-                  //           'Songs Per Player',
-                  //           songsPerPlayer,
-                  //           (value) {
-                  //             setState(() {
-                  //               songsPerPlayer = value!;
-
-                  //               firestoreService.setSongsPerPlayer(value);
-                  //             });
-                  //           },
-                  //         ),
-                  //       ),
-                  //     ],
-                  //   ),
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
@@ -284,8 +258,6 @@ class _LobbyPageState extends State<LobbyPage> {
                                   color: spotifyPurple,
                                   onPressed: () {
                                     _setQueueingState();
-
-                                    navigateToQueueingPage();
                                   },
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 32, vertical: 16),
@@ -314,6 +286,7 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Future<void> _setQueueingState() async {
+    // Navigate to the next page
     await firestoreService.Host_SetGameState(1);
   }
 
@@ -647,46 +620,52 @@ class _QueuePageState extends State<QueuePage> {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
-                      if (songQueue.value.length >= start_requirment) {
-                        return Center(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              firestoreService.Host_SetGameState(2);
+                      // if (songQueue.value.length >= start_requirment) {
+                      return Center(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (await getActiveDevice() == null) {
+                              await linkSpotifyApp();
 
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => GuessingPage()),
-                              );
-                            },
-                            child: Text(
-                              "Start Game",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 25, vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                              backgroundColor: spotifyGreen,
-                            ),
+                              return;
+                            }
+
+                            firestoreService.Host_SetGameState(2);
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => GuessingPage()),
+                            );
+                          },
+                          child: Text(
+                            "Start Game",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20),
                           ),
-                        );
-                      } else {
-                        return Center(
-                            child: Text(
-                          "Waiting for other players.",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 25, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                            backgroundColor: spotifyGreen,
                           ),
-                        ));
-                      }
+                        ),
+                      );
+                      // } else {
+                      //   return Center(
+                      //       child: Text(
+                      //     "Waiting for other players.",
+                      //     style: TextStyle(
+                      //       color: Colors.white,
+                      //       fontSize: 20,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //   ));
+                      // }
                     } else {
                       int remainingSongs =
                           widget.songsPerPlayer - songQueue.value.length;
@@ -715,6 +694,28 @@ class _QueuePageState extends State<QueuePage> {
           ],
         ),
       ),
+    );
+  }
+
+  void showConnectionError() {
+    getSmartphone();
+
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: Text("Unable to Start Playback"),
+          content: Text("Ensure Spotify client is active and try again."),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              child: Text("OK", style: TextStyle(color: Colors.redAccent)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
