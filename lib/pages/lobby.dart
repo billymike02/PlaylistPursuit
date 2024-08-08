@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/models/player_options.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'game.dart';
 import 'dart:async';
 import 'package:share_plus/share_plus.dart';
@@ -14,7 +12,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../spotify-api.dart';
 import '../main.dart';
-import 'package:logger/logger.dart';
 import 'package:queue_quandry/multiplayer.dart';
 
 // Define a GlobalKey<NavigatorState>
@@ -631,12 +628,6 @@ class _QueuePageState extends State<QueuePage> {
                             }
 
                             firestoreService.Host_SetGameState(2);
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => GuessingPage()),
-                            );
                           },
                           child: Text(
                             "Start Game",

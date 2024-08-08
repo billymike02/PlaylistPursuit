@@ -4,9 +4,7 @@ import 'package:queue_quandry/pages/login.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'multiplayer.dart';
-import 'package:spotify/spotify.dart';
 
 class Track {
   final String track_id;
@@ -438,21 +436,6 @@ Future<void> setVolumeLevel(int percent) async {
     print(
         'Failed to set volume: ${response.statusCode} - ${response.reasonPhrase}');
   }
-}
-
-Future<bool> linkSpotifyApp(String song_uri) async {
-  const String altRedirectUri = 'com.playlistpursuit://spotify-login-callback';
-
-  bool res = await SpotifySdk.connectToSpotifyRemote(
-      clientId: spotifyClientId,
-      redirectUrl: altRedirectUri,
-      scope:
-          "app-remote-control,user-modify-playback-state,playlist-read-private",
-      playerName: "Playlist Pursuit",
-      spotifyUri: song_uri,
-      asRadio: false);
-
-  return res;
 }
 
 Future<int> locatePlayer() async {

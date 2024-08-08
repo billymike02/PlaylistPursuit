@@ -7,7 +7,6 @@ import "../credentials.dart";
 import 'package:flutter/material.dart';
 import 'lobby.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'dart:convert';
 import 'package:queue_quandry/multiplayer.dart';
 
@@ -58,15 +57,14 @@ class _GuessingPageState extends State<GuessingPage> {
 
   @override
   void initState() {
+    print("Init state has been called on GuessingPage");
+
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }
 
     playbackQueue = [...songQueue.value];
     new_song = playbackQueue[0];
-
-    print(playbackQueue);
-
     songQueue.value.remove(playbackQueue[0]);
 
     getNewTrack();

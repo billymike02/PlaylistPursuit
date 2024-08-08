@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'package:queue_quandry/spotify-api.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'login.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:queue_quandry/multiplayer.dart';
