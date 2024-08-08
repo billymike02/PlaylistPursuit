@@ -12,6 +12,8 @@ ValueNotifier<List<String>> songQueue = ValueNotifier<List<String>>([]);
 // Store the game ID locally
 late String server_id;
 
+bool bLocalHost = false;
+
 String generateGameCode() {
   // Generate a custom ID here (e.g., using a random string or numeric ID)
   String gameId = 'game_${DateTime.now().millisecondsSinceEpoch}';
@@ -25,7 +27,6 @@ String generateGameCode() {
 }
 
 Future<void> initLobby(String gameCode) async {
-
   firestoreService.ResetData();
 
   try {
@@ -46,6 +47,7 @@ Future<void> initLobby(String gameCode) async {
     });
 
     server_id = newGameRef.id;
+    bLocalHost = true;
   } catch (e) {
     print('Error creating new game: $e');
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:queue_quandry/spotify-api.dart';
@@ -14,8 +15,9 @@ final int winningScore = 10;
 bool musicPlaying = true;
 
 class GuessingPage extends StatefulWidget {
-  GuessingPage();
-
+  GuessingPage({
+    Key? key,
+  }) : super(key: key);
   @override
   _GuessingPageState createState() => _GuessingPageState();
 }
@@ -30,19 +32,20 @@ class _GuessingPageState extends State<GuessingPage> {
   late int songLength;
 
   // Fields (to be mutated by our backend)
-  Player guiltyPlayer = playerList.value[1];
+  Player guiltyPlayer = playerList.value[0];
 
   // Local fields
   bool correctGuess = false;
   List<bool> buttonsPressed = [];
 
+  Timer? timer;
+
+  late String new_song;
+
   Future<void> getNewTrack() async {
-    String new_song = playbackQueue.removeAt(0);
-
-    var data = await getTrackInfo(new_song);
-
     await playTrack(new_song);
 
+    var data = await getTrackInfo(new_song);
     songName = data['name'];
 
     songArtist = data['artists'][0]['name'];
@@ -55,18 +58,29 @@ class _GuessingPageState extends State<GuessingPage> {
 
   @override
   void initState() {
-    super.initState();
-
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }
 
     playbackQueue = [...songQueue.value];
+    new_song = playbackQueue[0];
+
+    print(playbackQueue);
+
+    songQueue.value.remove(playbackQueue[0]);
 
     getNewTrack();
+
+    super.initState();
   }
 
-  void _navigateToNextPage() async {
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  void _proceedToResultPage() {
     print("Guilty: " +
         guiltyPlayer.display_name +
         " and buttons pressed: " +
@@ -122,7 +136,7 @@ class _GuessingPageState extends State<GuessingPage> {
     });
   }
 
-  Future<void> _pause() async {
+  Future<void> _handlePause() async {
     musicPlaying = !musicPlaying;
 
     if (musicPlaying == false)
@@ -243,38 +257,37 @@ class _GuessingPageState extends State<GuessingPage> {
                     ),
                   ),
                   Container(
-                    alignment: Alignment.bottomCenter,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TimerBar(
-                          backgroundColor: Color(0xFF9d40e3),
-                          progressColor: Colors.white,
-                          period: Duration(seconds: songLength),
-                          onComplete: _navigateToNextPage,
-                        ), // Placeholder widget when songLength is not initialized
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _pause();
-                            });
-                          },
-                          icon: musicPlaying
-                              ? Icon(Icons.pause_rounded,
-                                  color: Colors.white, size: 80)
-                              : Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 80,
-                                ),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: CupertinoButton(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      onPressed: () async {
+                        _proceedToResultPage();
+                      },
+                      color: Colors.white,
+                      child: Container(
+                        child: Row(
+                          children: [
+                            Text(
+                              "Next Song",
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            SizedBox(
+                              width: 3,
+                            ),
+                            Icon(
+                              Icons.skip_next_rounded,
+                              size: 25,
+                              color: Colors.black,
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
                         ),
-                        SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.05)
-                      ],
+                      ),
                     ),
-                  ),
+                  )
                 ],
               ),
             ),

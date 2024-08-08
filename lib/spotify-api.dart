@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'multiplayer.dart';
+import 'package:spotify/spotify.dart';
 
 class Track {
   final String track_id;
@@ -89,12 +90,27 @@ class Player {
 Future<void> pausePlayback() async {
   await ensureTokenIsValid();
 
-  await http.put(
-    Uri.parse('https://api.spotify.com/v1/me/player/pause'),
-    headers: {
-      'Authorization': 'Bearer $myToken',
-    },
-  );
+  bool bIsPlaying = true;
+
+  while (bIsPlaying == true) {
+    final response = await http.get(
+      Uri.parse('https://api.spotify.com/v1/me/player'),
+      headers: {
+        'Authorization': 'Bearer $myToken',
+      },
+    );
+
+    bIsPlaying = json.decode(response.body)['is_playing'];
+
+    await http.put(
+      Uri.parse('https://api.spotify.com/v1/me/player/pause'),
+      headers: {
+        'Authorization': 'Bearer $myToken',
+      },
+    );
+  }
+
+  print("Paused playback");
 }
 
 Future<void> resumePlayback() async {
@@ -199,8 +215,8 @@ Future<Map<String, dynamic>> getCurrentTrack() async {
   );
 
   var body = json.decode(response.body);
-  return body['item'];
-  // print("Here is the track:" + body['item']);
+  print(body['item']['uri']);
+  return body['item']['uri'];
 }
 
 Future<bool> isPlaying() async {
@@ -215,6 +231,33 @@ Future<bool> isPlaying() async {
 
   var body = json.decode(response.body);
   return body['is_playing'];
+}
+
+Future<bool> isSongDonePlaying() async {
+  final url =
+      Uri.parse('https://api.spotify.com/v1/me/player/currently-playing');
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Bearer $myToken',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final jsonResponse = json.decode(response.body);
+
+    // Get the progress and duration of the currently playing track
+    final int progressMs = jsonResponse['progress_ms'];
+    final int durationMs = jsonResponse['item']['duration_ms'];
+
+    // Return true if the song is done playing
+    return progressMs >= durationMs;
+  } else if (response.statusCode == 204) {
+    // No content (no track currently playing)
+    return false;
+  } else {
+    throw Exception('Failed to get current track: ${response.statusCode}');
+  }
 }
 
 Future<List<String>> searchQuery(String query) async {
@@ -243,6 +286,21 @@ Future<List<String>> searchQuery(String query) async {
   } catch (e) {
     return [];
   }
+}
+
+Future<bool> getPlaybackState() async {
+  await ensureTokenIsValid();
+
+  final response = await http.get(
+    Uri.parse('https://api.spotify.com/v1/me/player'),
+    headers: {
+      'Authorization': 'Bearer $myToken',
+    },
+  );
+
+  // print(json.decode(response.body)['is_playing']);
+
+  return json.decode(response.body)['is_playing'];
 }
 
 Future<String?> getActiveDevice() async {
@@ -361,14 +419,43 @@ Future<void> addTracksToPlaylist(String playlistId) async {
   );
 }
 
-Future<bool> linkSpotifyApp() async {
+Future<void> setVolumeLevel(int percent) async {
+  final url = Uri.parse('https://api.spotify.com/v1/me/player/volume');
+  final response = await http.put(
+    url,
+    headers: {
+      'Authorization': 'Bearer $myToken',
+      'Content-Type': 'application/json',
+    },
+    body: json.encode({
+      'volume_percent': percent,
+    }),
+  );
+
+  if (response.statusCode == 204) {
+    print('Volume set to zero successfully.');
+  } else {
+    print(
+        'Failed to set volume: ${response.statusCode} - ${response.reasonPhrase}');
+  }
+}
+
+Future<bool> linkSpotifyApp(String song_uri) async {
+  const String altRedirectUri = 'com.playlistpursuit://spotify-login-callback';
+
   bool res = await SpotifySdk.connectToSpotifyRemote(
-      clientId: spotifyClientId, redirectUrl: spotifyRedirectUri);
+      clientId: spotifyClientId,
+      redirectUrl: altRedirectUri,
+      scope:
+          "app-remote-control,user-modify-playback-state,playlist-read-private",
+      playerName: "Playlist Pursuit",
+      spotifyUri: song_uri,
+      asRadio: false);
 
   return res;
 }
 
-Future<void> getSmartphone() async {
+Future<int> locatePlayer() async {
   final url = Uri.parse('https://api.spotify.com/v1/me/player/devices');
 
   final response = await http.get(
@@ -381,12 +468,19 @@ Future<void> getSmartphone() async {
 
   if (response.statusCode == 200) {
     final devices = json.decode(response.body)['devices'];
+
+    print(devices);
+
     for (var device in devices) {
-      if (device['type'] == "Smartphone") {
-        print("Smartphone with ID: ${device['id']}");
+      if (device['name'] == "Playlist Pursuit") {
+        print("found da player");
+
+        return 0;
       }
     }
   } else {
     print('Error: ${response.reasonPhrase}');
   }
+
+  return -1;
 }

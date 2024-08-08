@@ -249,7 +249,7 @@ class _LobbyPageState extends State<LobbyPage> {
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
-                        if (playerList.value.length > 1 && bIsHost) {
+                        if (playerList.value.length > 0 && bIsHost) {
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
@@ -610,7 +610,7 @@ class _QueuePageState extends State<QueuePage> {
                 valueListenable: songQueue,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
-                    bool _enableButton = false; // true jsut for debug
+                    bool _enableButton = true; // true jsut for debug
 
                     if (widget.songsPerPlayer - songQueue.value.length <= 0) {
                       _enableButton = true;
@@ -624,8 +624,8 @@ class _QueuePageState extends State<QueuePage> {
                       return Center(
                         child: ElevatedButton(
                           onPressed: () async {
-                            if (await getActiveDevice() == null) {
-                              await linkSpotifyApp();
+                            if (await getPlaybackState() != true) {
+                              showConnectionError();
 
                               return;
                             }
@@ -698,14 +698,15 @@ class _QueuePageState extends State<QueuePage> {
   }
 
   void showConnectionError() {
-    getSmartphone();
+    locatePlayer();
 
     showCupertinoDialog(
       context: context,
       builder: (BuildContext context) {
         return CupertinoAlertDialog(
-          title: Text("Unable to Start Playback"),
-          content: Text("Ensure Spotify client is active and try again."),
+          title: Text("Unable to Begin Playback"),
+          content: Text(
+              "Ensure your device is currently playing from Spotify and try again."),
           actions: <Widget>[
             CupertinoDialogAction(
               child: Text("OK", style: TextStyle(color: Colors.redAccent)),
