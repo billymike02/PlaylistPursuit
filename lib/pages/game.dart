@@ -18,6 +18,8 @@ late Player guiltyPlayer;
 bool correctGuess = false;
 List<bool> buttonsPressed = [];
 
+String current_track = "";
+
 class GuessingPage extends StatefulWidget {
   GuessingPage({
     Key? key,
@@ -37,12 +39,19 @@ class _GuessingPageState extends State<GuessingPage> {
 
   Timer? timer;
 
-  late String new_song;
-
   Future<void> getNewTrack() async {
-    await playTrack(new_song);
+    // await playTrack(new_song);
 
-    var data = await getTrackInfo(new_song);
+    // wait for song change to be detected
+    while (bSongChange == false) {
+      await Future.delayed(Duration(milliseconds: 10)); // Check every 100ms
+    }
+
+    await firestoreService.Client_downloadCurrentTrack();
+    print("bSongChange: $current_track");
+    bSongChange = false;
+
+    var data = await getTrackInfo(current_track);
     songName = data['name'];
 
     songArtist = data['artists'][0]['name'];
@@ -61,10 +70,15 @@ class _GuessingPageState extends State<GuessingPage> {
       buttonsPressed.add(false);
     }
 
-    playbackQueue = [...queued_tracks.value.keys];
-    new_song = playbackQueue[0];
-    List<String> guilty_players = [...queued_tracks.value.values];
+    String new_song = "NULL";
+    if (bLocalHost.value == true) {
+      playbackQueue = [...queued_tracks.value.keys];
+      new_song = playbackQueue[0];
 
+      firestoreService.Host_setCurrentTrack(new_song);
+    }
+
+    List<String> guilty_players = [...queued_tracks.value.values];
     guiltyPlayer = playerList.value
         .firstWhere((element) => guilty_players[0] == element.user_id);
     queued_tracks.value.remove(new_song);

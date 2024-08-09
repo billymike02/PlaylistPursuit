@@ -352,6 +352,8 @@ Future<int> playTrack(String track_id) async {
 Future<dynamic> getTrackInfo(String track_id) async {
   await ensureTokenIsValid();
 
+  print("Attempting to load track: $track_id");
+
   final String url = 'https://api.spotify.com/v1/tracks/$track_id';
   final response = await http.get(
     Uri.parse(url),

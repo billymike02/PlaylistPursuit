@@ -609,6 +609,8 @@ class _QueuePageState extends State<QueuePage> {
                             }
 
                             if (bLocalHost.value == true) {
+                              // await firestoreService
+                              //     .Host_ShufflePlaybackOrder();
                               await firestoreService.Host_SetGameState(2);
                             }
                           },

@@ -9,6 +9,7 @@ String local_client_id = "DefaultUser";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
 ValueNotifier<Map<String, dynamic>> queued_tracks =
     ValueNotifier<Map<String, dynamic>>({});
+bool bSongChange = false;
 
 // Store the game ID locally
 late String server_id;
@@ -43,7 +44,8 @@ Future<void> initLobby(String gameCode) async {
       'game_state':
           0, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
       'host': local_client_id,
-      'songs_per_player': 3
+      'songs_per_player': 3,
+      'current_track': ""
     });
 
     server_id = newGameRef.id;
@@ -135,8 +137,6 @@ Future<void> downloadTrackQueue() async {
 
     // Parse the server data for the list of players
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
-    Map<String, dynamic> trackQueue = gameData['queued_tracks'];
-
     queued_tracks.value = gameData['queued_tracks'];
   } else {
     print('Document does not exist');
@@ -261,12 +261,36 @@ class FirestoreController {
   Map<String, dynamic> previousTrackQueue = {};
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
+  String previousCurrentTrack = "";
 
   void ResetData() {
     previousPlayerList = {};
     previousTrackQueue = {};
     previousGameState = 0;
     previousSongsPerPlayer = 3;
+    previousCurrentTrack = "";
+  }
+
+  Future<void> Client_downloadCurrentTrack() async {
+    DocumentSnapshot gameSnapshot = await FirebaseFirestore.instance
+        .collection('games')
+        .doc(server_id)
+        .get();
+
+    if (gameSnapshot.exists) {
+      Map<String, dynamic> gameData =
+          gameSnapshot.data() as Map<String, dynamic>;
+      // Access fields from gameData
+      current_track = gameData['current_track'];
+      bSongChange = true;
+    }
+  }
+
+  Future<void> Host_setCurrentTrack(String track_uri) async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+
+    await gameRef.update({'current_track': track_uri});
   }
 
   Future<void> Host_ShufflePlaybackOrder() async {
@@ -282,11 +306,11 @@ class FirestoreController {
         Map<String, dynamic> shuffledTrackQueue =
             Map<String, dynamic>.fromEntries(entryList);
 
-        print("Shuffled tracks: " + shuffledTrackQueue.toString());
-
         DocumentReference gameRef =
             FirebaseFirestore.instance.collection('games').doc(server_id);
         gameRef.update({'queued_tracks': shuffledTrackQueue});
+
+        print("Shuffled tracks: " + shuffledTrackQueue.toString());
       }
     });
   }
@@ -329,6 +353,16 @@ class FirestoreController {
         }
 
         previousSongsPerPlayer = currentSongsPerPlayer;
+
+        String currentTrack = snapshot.data()!['current_track'];
+
+        if (previousCurrentTrack != currentTrack) {
+          print('track has changed');
+
+          _onCurrentTrackChange(currentTrack);
+        }
+
+        previousCurrentTrack = currentTrack;
       }
     });
   }
@@ -338,6 +372,11 @@ class FirestoreController {
         FirebaseFirestore.instance.collection('games').doc(server_id);
 
     await gameRef.update({'songs_per_player': newNum});
+  }
+
+  void _onCurrentTrackChange(String newUri) {
+    current_track = newUri;
+    bSongChange = true;
   }
 
   void _onSongsPerPlayerChange(int newNum) {
