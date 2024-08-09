@@ -12,8 +12,7 @@ ValueNotifier<Map<String, dynamic>> queued_tracks =
 
 // Store the game ID locally
 late String server_id;
-
-bool bLocalHost = false;
+ValueNotifier<bool> bLocalHost = ValueNotifier<bool>(false);
 
 String generateGameCode() {
   // Generate a custom ID here (e.g., using a random string or numeric ID)
@@ -48,7 +47,7 @@ Future<void> initLobby(String gameCode) async {
     });
 
     server_id = newGameRef.id;
-    bLocalHost = true;
+    bLocalHost.value = true;
   } catch (e) {
     print('Error creating new game: $e');
   }
@@ -107,7 +106,7 @@ Future<void> addLocalPlayer() async {
 }
 
 /// Returns true if the supplied player is hosting the lobby.
-Future<bool> isHost(String player_id) async {
+Future<bool> getHost(String player_id) async {
   DocumentSnapshot gameSnapshot =
       await FirebaseFirestore.instance.collection('games').doc(server_id).get();
 
@@ -186,6 +185,7 @@ Future<int> joinGame(String gameCode) async {
 
       // Now we need to update the local fields with the data fetched from the server
       server_id = gameCode;
+      bLocalHost.value = await getHost(local_client_id);
 
       await downloadPlayerList();
 
@@ -198,6 +198,42 @@ Future<int> joinGame(String gameCode) async {
   }
 
   return -1;
+}
+
+void navigateToResultPage() {
+  // print("Guilty: " +
+  //     guiltyPlayer.display_name +
+  //     " and buttons pressed: " +
+  //     buttonsPressed.toString());
+
+  // for (int i = 0; i < playerList.value.length; i++) {
+  //   if (playerList.value[i].user_id == local_client_id && correctGuess) {
+  //     // Retrieve the current value and add 10 to it
+
+  //     playerList.value[i].score += 10;
+  //   }
+  // }
+
+  for (int i = 0; i < playerList.value.length; i++) {
+    if (playerList.value[i].score >= winningScore) {
+      if (bLocalHost.value == true) {
+        firestoreService.Host_SetGameState(4);
+      }
+
+      navigatorKey.currentState!.push(
+          MaterialPageRoute(builder: (context) => FinishPage(playerWon: true)));
+
+      return;
+    }
+  }
+
+  // navigatorKey.currentState!.push(
+  //   MaterialPageRoute(
+  //       builder: (context) => ResultPage(
+  //             isCorrect: correctGuess,
+  //             guiltyPlayer: guiltyPlayer,
+  //           )),
+  // );
 }
 
 void navigateToQueueingPage() {
@@ -314,9 +350,17 @@ class FirestoreController {
     } else if (newState == 2) {
       navigateToGuessingPage();
 
-      if (await isHost(local_client_id)) {
+      if (await getHost(local_client_id)) {
         Host_ShufflePlaybackOrder();
       }
+    } else if (newState == 3) {
+      print("skipping result page");
+
+      if (bLocalHost.value == true) {
+        Host_SetGameState(2);
+      }
+    } else if (newState == 4) {
+      print("to finale page");
     }
   }
 

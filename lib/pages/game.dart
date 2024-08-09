@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:queue_quandry/main.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:queue_quandry/spotify-api.dart';
@@ -77,46 +78,6 @@ class _GuessingPageState extends State<GuessingPage> {
   void dispose() {
     timer?.cancel();
     super.dispose();
-  }
-
-  void _proceedToResultPage() {
-    print("Guilty: " +
-        guiltyPlayer.display_name +
-        " and buttons pressed: " +
-        buttonsPressed.toString());
-
-    for (int i = 0; i < playerList.value.length; i++) {
-      if (playerList.value[i].user_id == local_client_id && correctGuess) {
-        // Retrieve the current value and add 10 to it
-
-        playerList.value[i].score += 10;
-      }
-    }
-
-    for (int i = 0; i < playerList.value.length; i++) {
-      if (playerList.value[i].score >= winningScore) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FinishPage(
-              playerWon: true,
-            ),
-          ),
-        );
-
-        return;
-      }
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ResultPage(
-          isCorrect: correctGuess,
-          guiltyPlayer: guiltyPlayer,
-        ),
-      ),
-    );
   }
 
   void _handleButtonPressed(int buttonIndex) {
@@ -260,7 +221,7 @@ class _GuessingPageState extends State<GuessingPage> {
                     child: CupertinoButton(
                       padding: EdgeInsets.symmetric(horizontal: 10),
                       onPressed: () async {
-                        _proceedToResultPage();
+                        firestoreService.Host_SetGameState(3);
                       },
                       color: Colors.white,
                       child: Container(

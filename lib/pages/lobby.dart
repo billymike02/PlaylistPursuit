@@ -37,8 +37,6 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
-  bool bIsHost = false;
-
   Future<void> _createLobby() async {
     await initLobby(widget.gameCode);
   }
@@ -47,13 +45,12 @@ class _LobbyPageState extends State<LobbyPage> {
     // Execute default local behavior
     if (widget.init == true) {
       // Clear the player list
-      bIsHost = true;
+      bLocalHost.value = true;
       playerList.value.clear();
 
       await _createLobby();
     }
 
-    await _getHostingStatus();
     firestoreService.listenForChanges();
   }
 
@@ -62,14 +59,6 @@ class _LobbyPageState extends State<LobbyPage> {
     super.initState();
 
     _handleLobbySetup();
-  }
-
-  Future<void> _getHostingStatus() async {
-    if (await isHost(local_client_id) == true) {
-      bIsHost = true;
-    }
-
-    // setState(() {});
   }
 
   void removePlayer(Player playerInstance) {
@@ -151,7 +140,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       SizedBox(
                         width: 7,
                       ),
-                      if (bIsHost)
+                      if (bLocalHost.value)
                         Expanded(
                           child: CupertinoButton(
                             onPressed: () {
@@ -246,7 +235,8 @@ class _LobbyPageState extends State<LobbyPage> {
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
-                        if (playerList.value.length > 0 && bIsHost) {
+                        if (playerList.value.length > 0 &&
+                            bLocalHost.value == true) {
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
@@ -425,14 +415,13 @@ class _QueuePageState extends State<QueuePage> {
   bool isSearching = false;
   Future<List<String>>? _fetchTopSongsFuture;
   Future<List<String>>? _searchedSongs;
-  late bool bIsHost = false;
 
   Future<List<String>> fetchTopSongs() async {
     return await getTopTracks(myToken);
   }
 
   Future<void> _getHostingStatus() async {
-    bIsHost = await isHost(local_client_id);
+    bLocalHost.value = await getHost(local_client_id);
   }
 
   @override
@@ -454,15 +443,6 @@ class _QueuePageState extends State<QueuePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: spotifyBlack,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
         title: const Text(
           'Add Some Songs',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -614,7 +594,7 @@ class _QueuePageState extends State<QueuePage> {
                       _enableButton = true;
                     }
 
-                    if (_enableButton && bIsHost) {
+                    if (_enableButton && bLocalHost.value == true) {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
@@ -887,20 +867,13 @@ class PlayerListing extends StatefulWidget {
 
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
-  bool bIsHost = false;
 
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
     // if the user is remote and the local user is the host then able kicking
     if (widget.playerInstance.user_id != local_client_id &&
-        await isHost(local_client_id)) {
+        await getHost(local_client_id)) {
       enableKicking = true;
-    }
-
-    if (await isHost(widget.playerInstance.user_id)) {
-      bIsHost = true;
-
-      // print(widget.playerInstance.user_id + "is given host icon");
     }
 
     setState(() {});
@@ -944,7 +917,7 @@ class _PlayerListingState extends State<PlayerListing> {
             ),
           ),
 
-          if (bIsHost)
+          if (bLocalHost.value == true)
             GestureDetector(
               child: Container(
                 width: 30,
