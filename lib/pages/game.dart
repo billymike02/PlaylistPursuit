@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:queue_quandry/main.dart';
+import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:queue_quandry/spotify-api.dart';
@@ -707,14 +708,14 @@ class _EndPageState extends State<EndPage> {
                   bottom: 50), // Adjust this value as needed
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
+                  Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => LobbyPage(
-                        gameCode: server_id,
-                        init: false,
-                      ),
-                    ),
+                        builder: (context) => LobbyPage(
+                              gameCode: server_id,
+                              init: false,
+                            )),
+                    (Route<dynamic> route) => false,
                   );
                 },
                 style: ElevatedButton.styleFrom(
