@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
+import 'package:queue_quandry/main.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:queue_quandry/spotify-api.dart';
@@ -6,7 +8,6 @@ import "../credentials.dart";
 import 'package:flutter/material.dart';
 import 'lobby.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'dart:convert';
 import 'package:queue_quandry/multiplayer.dart';
 
@@ -14,33 +15,36 @@ final int winningScore = 10;
 bool musicPlaying = true;
 
 class GuessingPage extends StatefulWidget {
-  GuessingPage();
-
+  GuessingPage({
+    Key? key,
+  }) : super(key: key);
   @override
   _GuessingPageState createState() => _GuessingPageState();
 }
 
 class _GuessingPageState extends State<GuessingPage> {
   bool _trackDataLoaded = false;
+
   // Fields (to be mutated by Spotify API)
   late String songName;
   late String songArtist;
   late String albumArt;
   late int songLength;
 
-  // Fields (to be mutated by our backend)
-  Player guiltyPlayer = playerList.value[1];
+  late Player guiltyPlayer;
 
   // Local fields
   bool correctGuess = false;
   List<bool> buttonsPressed = [];
 
-  Future<void> getNewTrack() async {
-    String new_song = playbackQueue.removeAt(0);
+  Timer? timer;
 
-    var data = await getTrackInfo(new_song);
+  late String new_song;
+
+  Future<void> getNewTrack() async {
     await playTrack(new_song);
 
+    var data = await getTrackInfo(new_song);
     songName = data['name'];
 
     songArtist = data['artists'][0]['name'];
@@ -59,50 +63,21 @@ class _GuessingPageState extends State<GuessingPage> {
       buttonsPressed.add(false);
     }
 
-    playbackQueue = [...songQueue.value];
-    print("Playback Queue: $playbackQueue");
+    playbackQueue = [...queued_tracks.value.keys];
+    new_song = playbackQueue[0];
+    List<String> guilty_players = [...queued_tracks.value.values];
+
+    guiltyPlayer = playerList.value
+        .firstWhere((element) => guilty_players[0] == element.user_id);
+    queued_tracks.value.remove(new_song);
 
     getNewTrack();
   }
 
-  void _navigateToNextPage() async {
-    print("Guilty: " +
-        guiltyPlayer.display_name +
-        " and buttons pressed: " +
-        buttonsPressed.toString());
-
-    for (int i = 0; i < playerList.value.length; i++) {
-      if (playerList.value[i].user_id == local_client_id && correctGuess) {
-        // Retrieve the current value and add 10 to it
-
-        playerList.value[i].score += 10;
-      }
-    }
-
-    for (int i = 0; i < playerList.value.length; i++) {
-      if (playerList.value[i].score >= winningScore) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FinishPage(
-              playerWon: true,
-            ),
-          ),
-        );
-
-        return;
-      }
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ResultPage(
-          isCorrect: correctGuess,
-          guiltyPlayer: guiltyPlayer,
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   void _handleButtonPressed(int buttonIndex) {
@@ -121,7 +96,7 @@ class _GuessingPageState extends State<GuessingPage> {
     });
   }
 
-  Future<void> _pause() async {
+  Future<void> _handlePause() async {
     musicPlaying = !musicPlaying;
 
     if (musicPlaying == false)
@@ -242,38 +217,37 @@ class _GuessingPageState extends State<GuessingPage> {
                     ),
                   ),
                   Container(
-                    alignment: Alignment.bottomCenter,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TimerBar(
-                          backgroundColor: Color(0xFF9d40e3),
-                          progressColor: Colors.white,
-                          period: Duration(seconds: songLength),
-                          onComplete: _navigateToNextPage,
-                        ), // Placeholder widget when songLength is not initialized
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _pause();
-                            });
-                          },
-                          icon: musicPlaying
-                              ? Icon(Icons.pause_rounded,
-                                  color: Colors.white, size: 80)
-                              : Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 80,
-                                ),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: CupertinoButton(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      onPressed: () async {
+                        firestoreService.Host_SetGameState(3);
+                      },
+                      color: Colors.white,
+                      child: Container(
+                        child: Row(
+                          children: [
+                            Text(
+                              "Next Song",
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            SizedBox(
+                              width: 3,
+                            ),
+                            Icon(
+                              Icons.skip_next_rounded,
+                              size: 25,
+                              color: Colors.black,
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
                         ),
-                        SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.05)
-                      ],
+                      ),
                     ),
-                  ),
+                  )
                 ],
               ),
             ),
@@ -382,8 +356,8 @@ class _ResultPageState extends State<ResultPage> {
     correctChoice = widget.guiltyPlayer.display_name;
   }
 
-  void _navigateToNextPage() {
-    if (playbackQueue.length > 0) {
+  void _proceedToNextPage() {
+    if (playbackQueue.length - 1 > 0) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -391,11 +365,25 @@ class _ResultPageState extends State<ResultPage> {
         ),
       );
     } else {
+      int max_score = 0;
+      bool game_result = false;
+      for (int i = 0; i < playerList.value.length; i++) {
+        if (playerList.value.elementAt(i).score > max_score) {
+          max_score = playerList.value.elementAt(i).score;
+        }
+      }
+
+      for (int i = 0; i < playerList.value.length; i++) {
+        if (playerList.value.elementAt(i).score >= max_score && max_score > 0) {
+          game_result = true;
+        }
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => FinishPage(
-            playerWon: true,
+            playerWon: game_result,
           ),
         ),
       );
@@ -435,11 +423,8 @@ class _ResultPageState extends State<ResultPage> {
           ),
           const SizedBox(height: 20),
           ClipOval(
-              child: Image.network(
-                  'https://i.scdn.co/image/ab6761610000e5eba1b1a48354e9a91fef58f651',
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.cover)),
+              child: Image.network(widget.guiltyPlayer.image,
+                  width: 200, height: 200, fit: BoxFit.cover)),
           Text(correctChoice,
               style: TextStyle(
                   color: Colors.white,
@@ -510,7 +495,7 @@ class _ResultPageState extends State<ResultPage> {
                       backgroundColor: Color.fromARGB(255, 131, 0, 0),
                       progressColor: Colors.white,
                       period: Duration(seconds: 5),
-                      onComplete: _navigateToNextPage,
+                      onComplete: _proceedToNextPage,
                     ),
                     SizedBox(height: MediaQuery.of(context).size.height * 0.1)
                   ],

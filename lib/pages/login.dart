@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:oauth2_client/access_token_response.dart';
 import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
 import 'dart:async';
 import '../credentials.dart';
 import 'lobby.dart';
@@ -163,11 +162,6 @@ class _LoginPageState extends State<LoginPage> {
                     height: MediaQuery.of(context).size.height * 0.3,
                   )
                 ]))));
-  }
-
-  Future<void> alternativeAuth() async {
-    await SpotifySdk.connectToSpotifyRemote(
-        clientId: spotifyClientId, redirectUrl: spotifyRedirectUri);
   }
 }
 

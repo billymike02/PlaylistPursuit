@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:queue_quandry/pages/home.dart';
 import 'package:queue_quandry/pages/login.dart';
 import 'package:queue_quandry/styles.dart';
-import 'package:spotify_sdk/models/player_options.dart';
 import 'game.dart';
 import 'dart:async';
 import 'package:share_plus/share_plus.dart';
@@ -12,7 +12,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../spotify-api.dart';
 import '../main.dart';
-import 'package:logger/logger.dart';
 import 'package:queue_quandry/multiplayer.dart';
 
 // Define a GlobalKey<NavigatorState>
@@ -38,8 +37,6 @@ class LobbyPage extends StatefulWidget {
 }
 
 class _LobbyPageState extends State<LobbyPage> {
-  bool bIsHost = false;
-
   Future<void> _createLobby() async {
     await initLobby(widget.gameCode);
   }
@@ -48,13 +45,12 @@ class _LobbyPageState extends State<LobbyPage> {
     // Execute default local behavior
     if (widget.init == true) {
       // Clear the player list
-      bIsHost = true;
+      bLocalHost.value = true;
       playerList.value.clear();
 
       await _createLobby();
     }
 
-    await _getHostingStatus();
     firestoreService.listenForChanges();
   }
 
@@ -63,14 +59,6 @@ class _LobbyPageState extends State<LobbyPage> {
     super.initState();
 
     _handleLobbySetup();
-  }
-
-  Future<void> _getHostingStatus() async {
-    if (await isHost(local_client_id) == true) {
-      bIsHost = true;
-    }
-
-    // setState(() {});
   }
 
   void removePlayer(Player playerInstance) {
@@ -152,7 +140,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       SizedBox(
                         width: 7,
                       ),
-                      if (bIsHost)
+                      if (bLocalHost.value)
                         Expanded(
                           child: CupertinoButton(
                             onPressed: () {
@@ -244,38 +232,11 @@ class _LobbyPageState extends State<LobbyPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // if (bIsHost)
-                  //   Column(
-                  //     children: [
-                  //       const Text(
-                  //         "Songs Per Player",
-                  //         style: TextStyle(
-                  //             color: Colors.white,
-                  //             fontWeight: FontWeight.w600,
-                  //             fontSize: 18),
-                  //       ),
-                  //       Padding(
-                  //         padding: EdgeInsets.only(
-                  //             top: 5,
-                  //             right: MediaQuery.of(context).size.width * 0.7),
-                  //         child: _buildDropdown(
-                  //           'Songs Per Player',
-                  //           songsPerPlayer,
-                  //           (value) {
-                  //             setState(() {
-                  //               songsPerPlayer = value!;
-
-                  //               firestoreService.setSongsPerPlayer(value);
-                  //             });
-                  //           },
-                  //         ),
-                  //       ),
-                  //     ],
-                  //   ),
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
-                        if (playerList.value.length > 1 && bIsHost) {
+                        if (playerList.value.length > 0 &&
+                            bLocalHost.value == true) {
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
@@ -284,8 +245,6 @@ class _LobbyPageState extends State<LobbyPage> {
                                   color: spotifyPurple,
                                   onPressed: () {
                                     _setQueueingState();
-
-                                    navigateToQueueingPage();
                                   },
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 32, vertical: 16),
@@ -314,6 +273,7 @@ class _LobbyPageState extends State<LobbyPage> {
   }
 
   Future<void> _setQueueingState() async {
+    // Navigate to the next page
     await firestoreService.Host_SetGameState(1);
   }
 
@@ -455,14 +415,13 @@ class _QueuePageState extends State<QueuePage> {
   bool isSearching = false;
   Future<List<String>>? _fetchTopSongsFuture;
   Future<List<String>>? _searchedSongs;
-  late bool bIsHost = false;
 
   Future<List<String>> fetchTopSongs() async {
     return await getTopTracks(myToken);
   }
 
   Future<void> _getHostingStatus() async {
-    bIsHost = await isHost(local_client_id);
+    bLocalHost.value = await getHost(local_client_id);
   }
 
   @override
@@ -484,15 +443,6 @@ class _QueuePageState extends State<QueuePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: spotifyBlack,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
         title: const Text(
           'Add Some Songs',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -633,66 +583,64 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder<List<String>>(
-                valueListenable: songQueue,
+            ValueListenableBuilder<Map<String, dynamic>>(
+                valueListenable: queued_tracks,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
-                    bool _enableButton = false; // true jsut for debug
+                    bool _enableButton = true; // true jsut for debug
 
-                    if (widget.songsPerPlayer - songQueue.value.length <= 0) {
+                    if (widget.songsPerPlayer - queued_tracks.value.length <=
+                        0) {
                       _enableButton = true;
                     }
 
-                    if (_enableButton && bIsHost) {
+                    if (_enableButton && bLocalHost.value == true) {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
-                      print(
-                          "Songs queued: ${songQueue.value.length} songs required: $start_requirment}");
+                      // if (songQueue.value.length >= start_requirment) {
+                      return Center(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (await getPlaybackState() != true) {
+                              showConnectionError();
 
-                      if (songQueue.value.length >= start_requirment) {
-                        return Center(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              firestoreService.Host_SetGameState(2);
+                              return;
+                            }
 
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => GuessingPage()),
-                              );
-                            },
-                            child: Text(
-                              "Start Game",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 25, vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                              backgroundColor: spotifyGreen,
-                            ),
+                            firestoreService.Host_SetGameState(2);
+                          },
+                          child: Text(
+                            "Start Game",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20),
                           ),
-                        );
-                      } else {
-                        return Center(
-                            child: Text(
-                          "Waiting for other players.",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 25, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                            backgroundColor: spotifyGreen,
                           ),
-                        ));
-                      }
+                        ),
+                      );
+                      // } else {
+                      //   return Center(
+                      //       child: Text(
+                      //     "Waiting for other players.",
+                      //     style: TextStyle(
+                      //       color: Colors.white,
+                      //       fontSize: 20,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //   ));
+                      // }
                     } else {
                       int remainingSongs =
-                          widget.songsPerPlayer - songQueue.value.length;
+                          widget.songsPerPlayer - queued_tracks.value.length;
 
                       String message = "";
 
@@ -720,6 +668,29 @@ class _QueuePageState extends State<QueuePage> {
       ),
     );
   }
+
+  void showConnectionError() {
+    locatePlayer();
+
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: Text("Unable to Begin Playback"),
+          content: Text(
+              "Ensure your device is currently playing from Spotify and try again."),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              child: Text("OK", style: TextStyle(color: Colors.redAccent)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class SongListing extends StatefulWidget {
@@ -743,7 +714,7 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (songQueue.value.contains(widget.track.track_id)) {
+    if (queued_tracks.value.entries.contains(widget.track.track_id)) {
       isChecked.value = true;
     }
   }
@@ -821,7 +792,7 @@ class _SongListingState extends State<SongListing> {
                 GestureDetector(
                     onTap: () {
                       if (!isChecked.value &&
-                          songQueue.value.length + 1 > songsPerPlayer) {
+                          queued_tracks.value.length + 1 > songsPerPlayer) {
                         showCupertinoDialog(
                           context: context,
                           builder: (BuildContext context) {
@@ -847,14 +818,8 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
-                        songQueue.value = List.from(songQueue.value)
-                          ..add(widget.track.track_id);
-
                         _firestoreAddSong();
                       } else {
-                        songQueue.value = List.from(songQueue.value)
-                          ..remove(widget.track.track_id);
-
                         _firestoreRemoveSong();
                       }
                     },
@@ -902,20 +867,13 @@ class PlayerListing extends StatefulWidget {
 
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
-  bool bIsHost = false;
 
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
     // if the user is remote and the local user is the host then able kicking
     if (widget.playerInstance.user_id != local_client_id &&
-        await isHost(local_client_id)) {
+        await getHost(local_client_id)) {
       enableKicking = true;
-    }
-
-    if (await isHost(widget.playerInstance.user_id)) {
-      bIsHost = true;
-
-      // print(widget.playerInstance.user_id + "is given host icon");
     }
 
     setState(() {});
@@ -959,7 +917,7 @@ class _PlayerListingState extends State<PlayerListing> {
             ),
           ),
 
-          if (bIsHost)
+          if (bLocalHost.value == true)
             GestureDetector(
               child: Container(
                 width: 30,
