@@ -51,7 +51,7 @@ class Player {
   Future<void> initPlayer() async {
     await ensureTokenIsValid();
 
-    display_name = await getDisplayName();
+    display_name = await getDisplayName(user_id);
     image = await getUserPicture();
 
     isInitialized = true;
@@ -70,19 +70,19 @@ class Player {
     var responseData = json.decode(response.body);
     return responseData['images'][0]['url'];
   }
+}
 
-  Future<String> getDisplayName() async {
-    await ensureTokenIsValid();
+Future<String> getDisplayName(String user_id) async {
+  await ensureTokenIsValid();
 
-    final response = await http.get(
-      Uri.parse('https://api.spotify.com/v1/users/$user_id'),
-      headers: {
-        'Authorization': 'Bearer $myToken',
-      },
-    );
+  final response = await http.get(
+    Uri.parse('https://api.spotify.com/v1/users/$user_id'),
+    headers: {
+      'Authorization': 'Bearer $myToken',
+    },
+  );
 
-    return json.decode(response.body)['display_name'];
-  }
+  return json.decode(response.body)['display_name'];
 }
 
 Future<void> pausePlayback() async {

@@ -16,6 +16,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String profile_name = "player";
+  TextEditingController _textController = TextEditingController();
+  String _inputText = '';
+
   Future<void> _attemptLogin() async {
     bool result = await authenticateUser();
 
@@ -29,6 +33,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     local_client_id = await getLocalUserID();
+    profile_name = await getDisplayName(local_client_id);
   }
 
   @override
@@ -42,13 +47,298 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: spotifyBlack,
-      body: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Gamemode(
-            gamePage: LobbyPage,
-            name: "Queue Quandary",
-            player_count: "2-8",
-            description: "Guess who queued each song."),
+      body: Stack(children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Padding(
+            //   padding: EdgeInsets.only(top: 30, left: 20),
+            //   child: ShaderMask(
+            //     shaderCallback: (bounds) => LinearGradient(
+            //       colors: [Colors.deepPurple.shade700, Colors.purple],
+            //       tileMode: TileMode.decal,
+            //     ).createShader(bounds),
+            //     child: Text(
+            //       'Welcome, $profile_name',
+            //       style: TextStyle(
+            //         fontSize: 40,
+            //         color: Colors
+            //             .white, // The color will be replaced by the gradient
+            //         fontWeight: FontWeight.w800,
+            //       ),
+            //     ),
+            //   ),
+            // ),
+          ],
+        ),
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Spacer(),
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [Colors.deepPurple.shade700, Colors.purple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Transform.rotate(
+                  angle: 0.2, // Rotate by 0.5 radians (approx. 28.6 degrees)
+                  child: Icon(
+                    Icons.queue_music_rounded,
+                    size: 250, // Adjust the size as needed
+                    color: Colors.white, // This color is ignored by ShaderMask
+                  ),
+                ),
+              ),
+              Spacer(),
+              Container(
+                width: MediaQuery.of(context).size.width * 0.8,
+                child: Column(children: [
+                  Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 24.0, vertical: 6.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: Colors.white, width: 1), // White border
+                      borderRadius:
+                          BorderRadius.circular(50), // Rounded corners
+                    ),
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      color:
+                          Colors.transparent, // Transparent button background
+                      child: Row(
+                        children: [
+                          Icon(Icons.multitrack_audio_sharp,
+                              color: Colors.white),
+                          SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.06),
+                          Text(
+                            'Connect to Spotify',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      onPressed: () async {
+                        connectUserToSpotify();
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    height: 5,
+                  ),
+                  Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 24.0, vertical: 6.0),
+                    decoration: BoxDecoration(
+                      color: spotifyGreen, // Background color for the button
+                      borderRadius:
+                          BorderRadius.circular(50), // Rounded corners
+                    ),
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      color:
+                          Colors.transparent, // Transparent button background
+                      child: Row(
+                        children: [
+                          Text(
+                            'Play with Friends',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                        mainAxisAlignment: MainAxisAlignment.center,
+                      ),
+                      onPressed: () {
+                        showTextFieldDialog(context);
+                      },
+                    ),
+                  ),
+                ]),
+              ),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.1,
+              ),
+            ],
+          ),
+        )
       ]),
+    );
+  }
+
+  void showTextFieldDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: spotifyGrey,
+          surfaceTintColor: Colors.transparent,
+          contentPadding: EdgeInsets.only(top: 15, left: 15, right: 15),
+          actionsPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+          content: SizedBox(
+            height: 45,
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  // Update any state related to the text field here
+                });
+              },
+              textAlignVertical: TextAlignVertical.bottom,
+              controller: _textController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(
+                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(10.0),
+                  ),
+                ),
+                hintText: 'Game code',
+                hintStyle:
+                    TextStyle(color: Colors.grey, fontWeight: FontWeight.w400),
+                fillColor: Colors.white,
+                filled: true,
+              ),
+              style: TextStyle(color: Colors.black),
+            ),
+          ),
+          actions: <Widget>[
+            Row(
+              children: [
+                Expanded(
+                  child: CupertinoButton(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    onPressed: () async {
+                      await ensureTokenIsValid();
+
+                      String gameCode = generateGameCode();
+
+                      navigatorKey.currentState!.push(
+                        MaterialPageRoute(
+                            builder: (context) => LobbyPage(
+                                  gameCode: gameCode,
+                                  init: true,
+                                )),
+                      );
+                    },
+                    color: Colors.white,
+                    child: Container(
+                      child: Row(
+                        children: [
+                          Text(
+                            "Create",
+                            style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500),
+                          ),
+                          SizedBox(
+                            width: 8,
+                          ),
+                          Icon(
+                            Icons.cast_rounded,
+                            size: 22,
+                            color: Colors.black,
+                          ),
+                        ],
+                        mainAxisAlignment: MainAxisAlignment.center,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 10,
+                ),
+                Expanded(
+                  child: CupertinoButton(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      color: spotifyGreen,
+                      child: Container(
+                        child: Row(
+                          children: [
+                            Text(
+                              "Join",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            SizedBox(
+                              width: 8,
+                            ),
+                            Icon(
+                              Icons.connect_without_contact_rounded,
+                              size: 22,
+                              color: Colors.white,
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _inputText = _textController.text;
+                          _textController.clear();
+                          _attemptJoinGame(_inputText);
+                        });
+
+                        Navigator.of(context).pop();
+                      }),
+                )
+              ],
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _attemptJoinGame(String code) async {
+    int result = await joinGame(code);
+
+    // If the connection fails, inform the user.
+    if (result != 0) {
+      showCupertinoDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CupertinoAlertDialog(
+            title: Text("Unable to Connect to Lobby"),
+            content: Text("\"$code\" is an invalid game code."),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                child: Text("OK", style: TextStyle(color: Colors.redAccent)),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+      return;
+    }
+
+    _joinLobby(code);
+  }
+
+  void _joinLobby(String code) {
+    // Navigate to the new lobby page
+    navigatorKey.currentState!.push(
+      MaterialPageRoute(
+          builder: (context) => LobbyPage(
+                gameCode: code,
+                init: false,
+              )),
     );
   }
 }
@@ -75,7 +365,7 @@ class _GamemodeState extends State<Gamemode> {
   TextEditingController _textController = TextEditingController();
   String _inputText = '';
 
-  void _showTextFieldDialog(BuildContext context) {
+  void showTextFieldDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -286,7 +576,7 @@ class _GamemodeState extends State<Gamemode> {
             CupertinoButton(
                 padding: EdgeInsets.all(0),
                 onPressed: () {
-                  _showTextFieldDialog(context);
+                  showTextFieldDialog(context);
                 },
                 child: Icon(
                   Icons.play_circle_fill_rounded,

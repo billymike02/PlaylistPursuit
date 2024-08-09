@@ -243,28 +243,37 @@ class _LobbyPageState extends State<LobbyPage> {
                         if (playerList.value.length > 0 &&
                             bLocalHost.value == true) {
                           return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                CupertinoButton(
-                                  color: spotifyPurple,
-                                  onPressed: () {
-                                    _setQueueingState();
-                                  },
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 32, vertical: 16),
-                                  child: const Text(
-                                    'Continue',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 20,
-                                        fontFamily: 'Gotham'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
+                              child: Container(
+                            width: MediaQuery.of(context).size.width * 0.5,
+                            child: CupertinoButton(
+                                color: CupertinoColors.activeBlue,
+                                onPressed: () {
+                                  _setQueueingState();
+                                },
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 16),
+                                child: const Row(
+                                  children: [
+                                    Text(
+                                      'Let\'s Play',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 20,
+                                          fontFamily: 'Gotham'),
+                                    ),
+                                    SizedBox(
+                                      width: 5,
+                                    ),
+                                    Icon(
+                                      Icons.gamepad_rounded,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ],
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                )),
+                          ));
                         }
 
                         return Container();
@@ -605,38 +614,46 @@ class _QueuePageState extends State<QueuePage> {
                           playerList.value.length * songsPerPlayer;
 
                       // if (songQueue.value.length >= start_requirment) {
+
                       return Center(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (await getPlaybackState() != true) {
-                              showConnectionError();
+                          child: Container(
+                        width: MediaQuery.of(context).size.width * 0.6,
+                        child: CupertinoButton(
+                            color: spotifyPurple,
+                            onPressed: () async {
+                              if (await getPlaybackState() != true) {
+                                showConnectionError();
 
-                              return;
-                            }
+                                return;
+                              }
 
-                            if (bLocalHost.value == true) {
-                              // await firestoreService
-                              //     .Host_ShufflePlaybackOrder();
-                              await firestoreService.Host_SetGameState(2);
-                            }
-                          },
-                          child: Text(
-                            "Start Game",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20),
-                          ),
-                          style: ElevatedButton.styleFrom(
+                              if (bLocalHost.value == true) {
+                                // await firestoreService
+                                //     .Host_ShufflePlaybackOrder();
+                                await firestoreService.Host_SetGameState(2);
+                              }
+                            },
                             padding: EdgeInsets.symmetric(
-                                horizontal: 25, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
-                            ),
-                            backgroundColor: spotifyGreen,
-                          ),
-                        ),
-                      );
+                                horizontal: 32, vertical: 16),
+                            child: const Row(
+                              children: [
+                                Text(
+                                  'Start Game',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 20,
+                                      fontFamily: 'Gotham'),
+                                ),
+                                Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                              ],
+                              mainAxisAlignment: MainAxisAlignment.center,
+                            )),
+                      ));
                       // } else {
                       //   return Center(
                       //       child: Text(

@@ -232,6 +232,7 @@ class _GuessingPageState extends State<GuessingPage> {
                   if (bLocalHost.value == true)
                     Container(
                       width: MediaQuery.of(context).size.width * 0.5,
+                      height: MediaQuery.of(context).size.height * 0.07,
                       child: CupertinoButton(
                         padding: EdgeInsets.symmetric(horizontal: 10),
                         onPressed: () async {

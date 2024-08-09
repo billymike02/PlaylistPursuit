@@ -165,26 +165,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-Future<bool> authenticateUser() async {
-  await loadToken();
-
-  // Check if token is not null and not expired
-  if (myToken != null && tokenExpiration != null) {
-    if (DateTime.now().isBefore(tokenExpiration!)) {
-      // print(
-      //     "Token is valid and not expired. Proceeding without re-authentication.");
-      return true;
-    } else {
-      // Token is expired, attempt to refresh it
-      bool refreshed = await refreshAccessToken();
-      if (refreshed) {
-        // print(
-        //     "Token successfully refreshed. Proceeding without re-authentication.");
-        return true;
-      }
-    }
-  }
-
+Future<bool> connectUserToSpotify() async {
   // Proceed with re-authentication if no valid token or refresh failed
   AccessTokenResponse? accessToken;
   SpotifyOAuth2Client client = SpotifyOAuth2Client(
@@ -226,4 +207,27 @@ Future<bool> authenticateUser() async {
   // print("Acquired Spotify Token ✅ -> " + myToken.toString());
 
   return true;
+}
+
+Future<bool> authenticateUser() async {
+  await loadToken();
+
+  // Check if token is not null and not expired
+  if (myToken != null && tokenExpiration != null) {
+    if (DateTime.now().isBefore(tokenExpiration!)) {
+      // print(
+      //     "Token is valid and not expired. Proceeding without re-authentication.");
+      return true;
+    } else {
+      // Token is expired, attempt to refresh it
+      bool refreshed = await refreshAccessToken();
+      if (refreshed) {
+        // print(
+        //     "Token successfully refreshed. Proceeding without re-authentication.");
+        return true;
+      }
+    }
+  }
+
+  return connectUserToSpotify();
 }

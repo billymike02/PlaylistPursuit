@@ -5,7 +5,7 @@ import 'package:queue_quandry/pages/game.dart';
 import 'package:queue_quandry/pages/lobby.dart';
 import 'spotify-api.dart';
 
-String local_client_id = "DefaultUser";
+String local_client_id = "<no-user>";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
 ValueNotifier<Map<String, dynamic>> queued_tracks =
     ValueNotifier<Map<String, dynamic>>({});
