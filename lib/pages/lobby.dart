@@ -603,13 +603,14 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder<List<String>>(
-                valueListenable: songQueue,
+            ValueListenableBuilder<Map<String, dynamic>>(
+                valueListenable: queued_tracks,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
                     bool _enableButton = true; // true jsut for debug
 
-                    if (widget.songsPerPlayer - songQueue.value.length <= 0) {
+                    if (widget.songsPerPlayer - queued_tracks.value.length <=
+                        0) {
                       _enableButton = true;
                     }
 
@@ -659,7 +660,7 @@ class _QueuePageState extends State<QueuePage> {
                       // }
                     } else {
                       int remainingSongs =
-                          widget.songsPerPlayer - songQueue.value.length;
+                          widget.songsPerPlayer - queued_tracks.value.length;
 
                       String message = "";
 
@@ -733,7 +734,7 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (songQueue.value.contains(widget.track.track_id)) {
+    if (queued_tracks.value.entries.contains(widget.track.track_id)) {
       isChecked.value = true;
     }
   }
@@ -811,7 +812,7 @@ class _SongListingState extends State<SongListing> {
                 GestureDetector(
                     onTap: () {
                       if (!isChecked.value &&
-                          songQueue.value.length + 1 > songsPerPlayer) {
+                          queued_tracks.value.length + 1 > songsPerPlayer) {
                         showCupertinoDialog(
                           context: context,
                           builder: (BuildContext context) {
@@ -837,14 +838,8 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
-                        songQueue.value = List.from(songQueue.value)
-                          ..add(widget.track.track_id);
-
                         _firestoreAddSong();
                       } else {
-                        songQueue.value = List.from(songQueue.value)
-                          ..remove(widget.track.track_id);
-
                         _firestoreRemoveSong();
                       }
                     },

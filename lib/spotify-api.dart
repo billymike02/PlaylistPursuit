@@ -412,7 +412,8 @@ Future<void> addTracksToPlaylist(String playlistId) async {
       'Content-Type': 'application/json',
     },
     body: json.encode({
-      'uris': songQueue.value.map((id) => 'spotify:track:$id').toList(),
+      'uris':
+          queued_tracks.value.keys.map((id) => 'spotify:track:$id').toList(),
     }),
   );
 }

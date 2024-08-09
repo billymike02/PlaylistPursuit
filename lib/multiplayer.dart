@@ -7,7 +7,8 @@ import 'spotify-api.dart';
 
 String local_client_id = "DefaultUser";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
-ValueNotifier<List<String>> songQueue = ValueNotifier<List<String>>([]);
+ValueNotifier<Map<String, dynamic>> queued_tracks =
+    ValueNotifier<Map<String, dynamic>>({});
 
 // Store the game ID locally
 late String server_id;
@@ -131,18 +132,13 @@ Future<void> downloadTrackQueue() async {
 
   if (gameSnapshot.exists) {
     // Clear the locally stored song queue
-    songQueue.value.clear();
+    queued_tracks.value.clear();
 
     // Parse the server data for the list of players
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
     Map<String, dynamic> trackQueue = gameData['queued_tracks'];
 
-    // Copy these players to the local thing
-    trackQueue.forEach(
-      (key, value) {
-        songQueue.value = List.from(songQueue.value)..add(key);
-      },
-    );
+    queued_tracks.value = gameData['queued_tracks'];
   } else {
     print('Document does not exist');
   }

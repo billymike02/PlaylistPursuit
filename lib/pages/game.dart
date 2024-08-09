@@ -30,8 +30,7 @@ class _GuessingPageState extends State<GuessingPage> {
   late String albumArt;
   late int songLength;
 
-  // Fields (to be mutated by our backend)
-  Player guiltyPlayer = playerList.value[0];
+  late Player guiltyPlayer;
 
   // Local fields
   bool correctGuess = false;
@@ -57,19 +56,21 @@ class _GuessingPageState extends State<GuessingPage> {
 
   @override
   void initState() {
-    print("Init state has been called on GuessingPage");
+    super.initState();
 
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }
 
-    playbackQueue = [...songQueue.value];
+    playbackQueue = [...queued_tracks.value.keys];
     new_song = playbackQueue[0];
-    songQueue.value.remove(playbackQueue[0]);
+    List<String> guilty_players = [...queued_tracks.value.values];
+
+    guiltyPlayer = playerList.value
+        .firstWhere((element) => guilty_players[0] == element.user_id);
+    queued_tracks.value.remove(new_song);
 
     getNewTrack();
-
-    super.initState();
   }
 
   @override
@@ -394,8 +395,8 @@ class _ResultPageState extends State<ResultPage> {
     correctChoice = widget.guiltyPlayer.display_name;
   }
 
-  void _navigateToNextPage() {
-    if (playbackQueue.length > 0) {
+  void _proceedToNextPage() {
+    if (playbackQueue.length - 1 > 0) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -403,11 +404,25 @@ class _ResultPageState extends State<ResultPage> {
         ),
       );
     } else {
+      int max_score = 0;
+      bool game_result = false;
+      for (int i = 0; i < playerList.value.length; i++) {
+        if (playerList.value.elementAt(i).score > max_score) {
+          max_score = playerList.value.elementAt(i).score;
+        }
+      }
+
+      for (int i = 0; i < playerList.value.length; i++) {
+        if (playerList.value.elementAt(i).score >= max_score && max_score > 0) {
+          game_result = true;
+        }
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => FinishPage(
-            playerWon: true,
+            playerWon: game_result,
           ),
         ),
       );
@@ -447,11 +462,8 @@ class _ResultPageState extends State<ResultPage> {
           ),
           const SizedBox(height: 20),
           ClipOval(
-              child: Image.network(
-                  'https://i.scdn.co/image/ab6761610000e5eba1b1a48354e9a91fef58f651',
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.cover)),
+              child: Image.network(widget.guiltyPlayer.image,
+                  width: 200, height: 200, fit: BoxFit.cover)),
           Text(correctChoice,
               style: TextStyle(
                   color: Colors.white,
@@ -522,7 +534,7 @@ class _ResultPageState extends State<ResultPage> {
                       backgroundColor: Color.fromARGB(255, 131, 0, 0),
                       progressColor: Colors.white,
                       period: Duration(seconds: 5),
-                      onComplete: _navigateToNextPage,
+                      onComplete: _proceedToNextPage,
                     ),
                     SizedBox(height: MediaQuery.of(context).size.height * 0.1)
                   ],
