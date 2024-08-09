@@ -296,9 +296,11 @@ Future<bool> getPlaybackState() async {
     },
   );
 
-  // print(json.decode(response.body)['is_playing']);
-
-  return json.decode(response.body)['is_playing'];
+  try {
+    return json.decode(response.body)['is_playing'];
+  } catch (e) {
+    return false;
+  }
 }
 
 Future<String?> getActiveDevice() async {
@@ -452,8 +454,6 @@ Future<int> locatePlayer() async {
 
   if (response.statusCode == 200) {
     final devices = json.decode(response.body)['devices'];
-
-    print(devices);
 
     for (var device in devices) {
       if (device['name'] == "Playlist Pursuit") {

@@ -13,6 +13,10 @@ import 'package:queue_quandry/multiplayer.dart';
 
 final int winningScore = 10;
 bool musicPlaying = true;
+late Player guiltyPlayer;
+// Local fields
+bool correctGuess = false;
+List<bool> buttonsPressed = [];
 
 class GuessingPage extends StatefulWidget {
   GuessingPage({
@@ -30,12 +34,6 @@ class _GuessingPageState extends State<GuessingPage> {
   late String songArtist;
   late String albumArt;
   late int songLength;
-
-  late Player guiltyPlayer;
-
-  // Local fields
-  bool correctGuess = false;
-  List<bool> buttonsPressed = [];
 
   Timer? timer;
 
@@ -216,38 +214,39 @@ class _GuessingPageState extends State<GuessingPage> {
                       },
                     ),
                   ),
-                  Container(
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    child: CupertinoButton(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      onPressed: () async {
-                        firestoreService.Host_SetGameState(3);
-                      },
-                      color: Colors.white,
-                      child: Container(
-                        child: Row(
-                          children: [
-                            Text(
-                              "Next Song",
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                            SizedBox(
-                              width: 3,
-                            ),
-                            Icon(
-                              Icons.skip_next_rounded,
-                              size: 25,
-                              color: Colors.black,
-                            ),
-                          ],
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  if (bLocalHost.value == true)
+                    Container(
+                      width: MediaQuery.of(context).size.width * 0.5,
+                      child: CupertinoButton(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        onPressed: () async {
+                          firestoreService.Host_SetGameState(3);
+                        },
+                        color: Colors.white,
+                        child: Container(
+                          child: Row(
+                            children: [
+                              Text(
+                                "Next Song",
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              SizedBox(
+                                width: 3,
+                              ),
+                              Icon(
+                                Icons.skip_next_rounded,
+                                size: 25,
+                                color: Colors.black,
+                              ),
+                            ],
+                            mainAxisAlignment: MainAxisAlignment.center,
+                          ),
                         ),
                       ),
-                    ),
-                  )
+                    )
                 ],
               ),
             ),
@@ -357,36 +356,13 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   void _proceedToNextPage() {
+    // only change the page if you're the host
+    if (bLocalHost.value == false) return;
+
     if (playbackQueue.length - 1 > 0) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GuessingPage(),
-        ),
-      );
+      firestoreService.Host_SetGameState(2);
     } else {
-      int max_score = 0;
-      bool game_result = false;
-      for (int i = 0; i < playerList.value.length; i++) {
-        if (playerList.value.elementAt(i).score > max_score) {
-          max_score = playerList.value.elementAt(i).score;
-        }
-      }
-
-      for (int i = 0; i < playerList.value.length; i++) {
-        if (playerList.value.elementAt(i).score >= max_score && max_score > 0) {
-          game_result = true;
-        }
-      }
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FinishPage(
-            playerWon: game_result,
-          ),
-        ),
-      );
+      firestoreService.Host_SetGameState(4);
     }
   }
 

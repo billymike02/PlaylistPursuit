@@ -608,7 +608,9 @@ class _QueuePageState extends State<QueuePage> {
                               return;
                             }
 
-                            firestoreService.Host_SetGameState(2);
+                            if (bLocalHost.value == true) {
+                              await firestoreService.Host_SetGameState(2);
+                            }
                           },
                           child: Text(
                             "Start Game",
@@ -670,8 +672,6 @@ class _QueuePageState extends State<QueuePage> {
   }
 
   void showConnectionError() {
-    locatePlayer();
-
     showCupertinoDialog(
       context: context,
       builder: (BuildContext context) {
@@ -725,8 +725,6 @@ class _SongListingState extends State<SongListing> {
 
     await gameRef
         .update({'queued_tracks.${widget.track.track_id}': local_client_id});
-
-    await firestoreService.Host_ShufflePlaybackOrder();
   }
 
   Future<void> _firestoreRemoveSong() async {
@@ -867,6 +865,7 @@ class PlayerListing extends StatefulWidget {
 
 class _PlayerListingState extends State<PlayerListing> {
   bool enableKicking = false;
+  bool bHost = bLocalHost.value;
 
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
@@ -874,6 +873,9 @@ class _PlayerListingState extends State<PlayerListing> {
     if (widget.playerInstance.user_id != local_client_id &&
         await getHost(local_client_id)) {
       enableKicking = true;
+      bHost = false;
+    } else if (await getHost(widget.playerInstance.user_id)) {
+      bHost = true;
     }
 
     setState(() {});
@@ -917,7 +919,7 @@ class _PlayerListingState extends State<PlayerListing> {
             ),
           ),
 
-          if (bLocalHost.value == true)
+          if (bHost == true)
             GestureDetector(
               child: Container(
                 width: 30,

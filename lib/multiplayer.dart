@@ -200,40 +200,41 @@ Future<int> joinGame(String gameCode) async {
   return -1;
 }
 
-void navigateToResultPage() {
-  // print("Guilty: " +
-  //     guiltyPlayer.display_name +
-  //     " and buttons pressed: " +
-  //     buttonsPressed.toString());
-
-  // for (int i = 0; i < playerList.value.length; i++) {
-  //   if (playerList.value[i].user_id == local_client_id && correctGuess) {
-  //     // Retrieve the current value and add 10 to it
-
-  //     playerList.value[i].score += 10;
-  //   }
-  // }
+void navigateToFinishPage() {
+  int maxValue = 0;
 
   for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].score >= winningScore) {
-      if (bLocalHost.value == true) {
-        firestoreService.Host_SetGameState(4);
-      }
-
-      navigatorKey.currentState!.push(
-          MaterialPageRoute(builder: (context) => FinishPage(playerWon: true)));
-
-      return;
+    if (playerList.value[i].score >= maxValue) {
+      maxValue = playerList.value[i].score;
     }
   }
 
-  // navigatorKey.currentState!.push(
-  //   MaterialPageRoute(
-  //       builder: (context) => ResultPage(
-  //             isCorrect: correctGuess,
-  //             guiltyPlayer: guiltyPlayer,
-  //           )),
-  // );
+  bool playerWon = false;
+
+  // if the local player has >= maximum score then they win
+  if (playerList.value.any((element) =>
+      element.user_id == local_client_id && element.score == maxValue)) {
+    playerWon = true;
+  }
+
+  navigatorKey.currentState!.push(MaterialPageRoute(
+      builder: (context) => FinishPage(playerWon: playerWon)));
+}
+
+void navigateToResultPage() {
+  for (int i = 0; i < playerList.value.length; i++) {
+    if (playerList.value[i].user_id == local_client_id && correctGuess) {
+      playerList.value[i].score += 10;
+    }
+  }
+
+  navigatorKey.currentState!.push(
+    MaterialPageRoute(
+        builder: (context) => ResultPage(
+              isCorrect: correctGuess,
+              guiltyPlayer: guiltyPlayer,
+            )),
+  );
 }
 
 void navigateToQueueingPage() {
@@ -281,7 +282,7 @@ class FirestoreController {
         Map<String, dynamic> shuffledTrackQueue =
             Map<String, dynamic>.fromEntries(entryList);
 
-        // print("Shuffled tracks: " + shuffledTrackQueue.toString());
+        print("Shuffled tracks: " + shuffledTrackQueue.toString());
 
         DocumentReference gameRef =
             FirebaseFirestore.instance.collection('games').doc(server_id);
@@ -349,18 +350,10 @@ class FirestoreController {
       navigateToQueueingPage();
     } else if (newState == 2) {
       navigateToGuessingPage();
-
-      if (await getHost(local_client_id)) {
-        Host_ShufflePlaybackOrder();
-      }
     } else if (newState == 3) {
-      print("skipping result page");
-
-      if (bLocalHost.value == true) {
-        Host_SetGameState(2);
-      }
+      navigateToResultPage();
     } else if (newState == 4) {
-      print("to finale page");
+      navigateToFinishPage();
     }
   }
 
