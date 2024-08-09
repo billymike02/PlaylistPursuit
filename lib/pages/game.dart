@@ -49,7 +49,7 @@ class _GuessingPageState extends State<GuessingPage> {
     }
 
     await firestoreService.Client_downloadCurrentTrack();
-    print("bSongChange: $current_track");
+    // print("bSongChange: $current_track");
     bSongChange = false;
 
     var data = await getTrackInfo(current_track);

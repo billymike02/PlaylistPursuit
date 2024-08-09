@@ -310,7 +310,7 @@ class FirestoreController {
             FirebaseFirestore.instance.collection('games').doc(server_id);
         gameRef.update({'queued_tracks': shuffledTrackQueue});
 
-        print("Shuffled tracks: " + shuffledTrackQueue.toString());
+        // print("Shuffled tracks: " + shuffledTrackQueue.toString());
       }
     });
   }
@@ -357,7 +357,7 @@ class FirestoreController {
         String currentTrack = snapshot.data()!['current_track'];
 
         if (previousCurrentTrack != currentTrack) {
-          print('track has changed');
+          // print('track has changed');
 
           _onCurrentTrackChange(currentTrack);
         }
