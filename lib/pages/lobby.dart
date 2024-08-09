@@ -19,6 +19,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 int songsPerPlayer = 3;
 List<String> playbackQueue = [];
+int local_songsQueued = 0;
 
 class LobbyPage extends StatefulWidget {
   final int songsPerPlayer;
@@ -433,6 +434,7 @@ class _QueuePageState extends State<QueuePage> {
     super.initState();
 
     playbackQueue = [];
+    local_songsQueued = 0;
     _fetchTopSongsFuture = fetchTopSongs();
 
     _getHostingStatus();
@@ -648,7 +650,7 @@ class _QueuePageState extends State<QueuePage> {
                       // }
                     } else {
                       int remainingSongs =
-                          widget.songsPerPlayer - queued_tracks.value.length;
+                          widget.songsPerPlayer - local_songsQueued;
 
                       String message = "";
 
@@ -796,7 +798,7 @@ class _SongListingState extends State<SongListing> {
                 GestureDetector(
                     onTap: () {
                       if (!isChecked.value &&
-                          queued_tracks.value.length + 1 > songsPerPlayer) {
+                          local_songsQueued + 1 > songsPerPlayer) {
                         showCupertinoDialog(
                           context: context,
                           builder: (BuildContext context) {
@@ -822,8 +824,10 @@ class _SongListingState extends State<SongListing> {
 
                       isChecked.value = !isChecked.value;
                       if (isChecked.value) {
+                        local_songsQueued++;
                         _firestoreAddSong();
                       } else {
+                        local_songsQueued--;
                         _firestoreRemoveSong();
                       }
                     },
