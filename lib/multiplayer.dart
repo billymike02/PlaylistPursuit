@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:queue_quandry/main.dart';
 import 'package:queue_quandry/pages/game.dart';
 import 'package:queue_quandry/pages/lobby.dart';
+import 'package:queue_quandry/pages/login.dart';
 import 'spotify-api.dart';
 
 String local_client_id = "<no-user>";
@@ -93,15 +95,6 @@ Future<void> addPlayerToServer(String userID) async {
   // downloadPlayerList();
 }
 
-Future<void> removePlayerFromServer(Player playerInstance) async {
-  DocumentReference gameRef =
-      FirebaseFirestore.instance.collection('games').doc(server_id);
-
-  String playerId = playerInstance.user_id;
-
-  await gameRef.update({'players.$playerId': FieldValue.delete()});
-}
-
 Future<void> addLocalPlayer() async {
   local_client_id = await getLocalUserID();
 
@@ -166,7 +159,20 @@ Future<void> downloadPlayerList() async {
       },
     );
 
-    print(playerList.value);
+    if (players.containsKey(local_client_id) == false) {
+      await ensureTokenIsValid();
+
+      String gameCode = generateGameCode();
+
+      navigatorKey.currentState!.push(
+        MaterialPageRoute(
+            builder: (context) => LobbyPage(
+                  gameCode: gameCode,
+                  init: true,
+                  bKicked: true,
+                )),
+      );
+    }
 
     // Initialize all of them
     initAllPlayers();
@@ -280,6 +286,20 @@ class FirestoreController {
     previousGameState = 0;
     previousSongsPerPlayer = 3;
     previousCurrentTrack = "";
+  }
+
+  Future<void> removePlayerFromServer(Player playerInstance) async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+
+    String playerId = playerInstance.user_id;
+
+    try {
+      await gameRef.update({'players.$playerId': FieldValue.delete()});
+    } catch (e) {
+      // Handle any errors that might occur during the update
+      print("Error removing player: $e");
+    }
   }
 
   Future<void> Client_downloadCurrentTrack() async {

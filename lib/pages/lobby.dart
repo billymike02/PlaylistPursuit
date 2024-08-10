@@ -25,13 +25,15 @@ class LobbyPage extends StatefulWidget {
   final int songsPerPlayer;
   final bool init;
   late String gameCode;
+  bool bKicked;
 
-  LobbyPage({
-    Key? key,
-    required this.init,
-    required this.gameCode,
-    this.songsPerPlayer = 1,
-  }) : super(key: key);
+  LobbyPage(
+      {Key? key,
+      required this.init,
+      required this.gameCode,
+      this.songsPerPlayer = 1,
+      this.bKicked = false})
+      : super(key: key);
 
   @override
   _LobbyPageState createState() => _LobbyPageState();
@@ -40,6 +42,26 @@ class LobbyPage extends StatefulWidget {
 class _LobbyPageState extends State<LobbyPage> {
   Future<void> _createLobby() async {
     await initLobby(widget.gameCode);
+  }
+
+  void showKickedMessage() {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: Text("Kicked from Lobby"),
+          content: Text("The host has removed you from their lobby."),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              child: Text("OK", style: TextStyle(color: Colors.redAccent)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _handleLobbySetup() async {
@@ -60,14 +82,16 @@ class _LobbyPageState extends State<LobbyPage> {
     super.initState();
 
     _handleLobbySetup();
+
+    if (widget.bKicked)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // This code will run after the build is complete
+        showKickedMessage();
+      });
   }
 
   void removePlayer(Player playerInstance) {
-    removePlayerFromServer(playerInstance);
-
-    print("🔴 Removed player ${playerInstance.user_id} from lobby.");
-
-    playerList.notifyListeners();
+    firestoreService.removePlayerFromServer(playerInstance);
   }
 
   Widget build(BuildContext context) {
