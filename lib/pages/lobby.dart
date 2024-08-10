@@ -218,6 +218,7 @@ class _LobbyPageState extends State<LobbyPage> {
                         return Padding(
                           padding: EdgeInsets.only(top: 6, bottom: 6),
                           child: PlayerListing(
+                            color: spotifyGrey,
                             playerInstance: playerInstance,
                             onRemove: removePlayer,
                           ),
@@ -880,11 +881,14 @@ class _SongListingState extends State<SongListing> {
 class PlayerListing extends StatefulWidget {
   final Player playerInstance;
   final Function(Player)? onRemove;
+  final Color color;
+  bool showScore;
 
-  PlayerListing({
-    required this.playerInstance,
-    this.onRemove,
-  });
+  PlayerListing(
+      {required this.playerInstance,
+      this.onRemove,
+      this.showScore = false,
+      required this.color});
 
   @override
   _PlayerListingState createState() => _PlayerListingState();
@@ -920,7 +924,7 @@ class _PlayerListingState extends State<PlayerListing> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(12)),
-        color: Color.fromARGB(255, 41, 41, 41),
+        color: widget.color,
       ),
       padding: EdgeInsets.all(10),
       child: Row(
@@ -945,8 +949,12 @@ class _PlayerListingState extends State<PlayerListing> {
               ),
             ),
           ),
-
-          if (bHost == true)
+          if (widget.showScore == true)
+            Text(
+              widget.playerInstance.score.toString(),
+              style: TextStyle(color: Colors.white, fontSize: 20),
+            )
+          else if (bHost == true)
             GestureDetector(
               child: Container(
                 width: 30,
@@ -961,11 +969,11 @@ class _PlayerListingState extends State<PlayerListing> {
                   size: 30,
                 ),
               ),
-            ),
+            )
 
           // Enable the kicking option if it's allowed for the player
 
-          if (enableKicking)
+          else if (enableKicking)
             CupertinoButton(
               padding: EdgeInsets.all(0),
               minSize: 0,

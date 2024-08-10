@@ -428,56 +428,44 @@ class _ResultPageState extends State<ResultPage> {
                   color: Colors.white,
                   fontSize: 30,
                   fontWeight: FontWeight.w700)),
-          SizedBox(height: 20),
-          for (int i = 0; i < playerList.value.length; i++)
-            Column(
-              children: [
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.75,
-                  height: MediaQuery.of(context).size.height * 0.06,
-                  decoration: BoxDecoration(
-                    color: playerList.value[i].user_id == local_client_id
-                        ? myBoxColor
-                        : boxColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Left-aligned text
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16.0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            playerList.value[i].display_name,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.30,
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: ValueListenableBuilder<List<Player>>(
+              valueListenable: playerList,
+              builder: (context, value, child) {
+                if (value.length < 1) {
+                  return Text(
+                    'Loading players...',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500),
+                  );
+                }
+
+                return ListView.builder(
+                  key: UniqueKey(),
+                  itemCount: value.length,
+                  itemBuilder: (context, index) {
+                    final playerInstance = playerList.value[index];
+
+                    if (playerInstance.isInitialized == false) {
+                      return Container();
+                    }
+                    return Padding(
+                      padding: EdgeInsets.only(top: 6, bottom: 6),
+                      child: PlayerListing(
+                        color: boxColor,
+                        playerInstance: playerInstance,
+                        showScore: true,
                       ),
-                      // Right-aligned text
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16.0),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            playerList.value[i].score.toString(),
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
+                    );
+                  },
+                );
+              },
             ),
+          ),
           Expanded(
             child: Container(
                 alignment: Alignment.bottomCenter,
@@ -509,9 +497,6 @@ class FinishPage extends StatefulWidget {
 }
 
 class _FinishPageState extends State<FinishPage> {
-  // Remove late initialization of playerWon
-  // late final bool playerWon;
-
   @override
   void initState() {
     super.initState();
@@ -554,58 +539,44 @@ class _FinishPageState extends State<FinishPage> {
                   color: Colors.white,
                   fontSize: 30,
                   fontWeight: FontWeight.w700)),
-          SizedBox(height: 35),
-          for (int i = 0; i < playerList.value.length; i++)
-            Column(
-              children: [
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.75,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: playerList.value[i].user_id == local_client_id
-                        ? myBoxColor
-                        : boxColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Left-aligned text
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16.0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            playerList.value[i].display_name,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.30,
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: ValueListenableBuilder<List<Player>>(
+              valueListenable: playerList,
+              builder: (context, value, child) {
+                if (value.length < 1) {
+                  return Text(
+                    'Loading players...',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500),
+                  );
+                }
+
+                return ListView.builder(
+                  key: UniqueKey(),
+                  itemCount: value.length,
+                  itemBuilder: (context, index) {
+                    final playerInstance = playerList.value[index];
+
+                    if (playerInstance.isInitialized == false) {
+                      return Container();
+                    }
+                    return Padding(
+                      padding: EdgeInsets.only(top: 6, bottom: 6),
+                      child: PlayerListing(
+                        color: boxColor,
+                        playerInstance: playerInstance,
+                        showScore: true,
                       ),
-                      // Right-aligned text
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16.0),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            playerList.value[i].score.toString(),
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 10,
-                )
-              ],
+                    );
+                  },
+                );
+              },
             ),
+          ),
           Expanded(
             child: Container(
               alignment: Alignment.bottomCenter,

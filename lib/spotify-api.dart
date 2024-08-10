@@ -48,6 +48,14 @@ class Player {
 
   Player(this.user_id, {this.isInitialized = false});
 
+  @override
+  String toString() {
+    if (this.isInitialized)
+      return "Name: $display_name, Score: $score";
+    else
+      return "uninitialized";
+  }
+
   Future<void> initPlayer() async {
     await ensureTokenIsValid();
 

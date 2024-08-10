@@ -7,6 +7,7 @@ import 'spotify-api.dart';
 
 String local_client_id = "<no-user>";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
+ValueNotifier<List<int>> scoreboard = ValueNotifier<List<int>>([]);
 ValueNotifier<Map<String, dynamic>> queued_tracks =
     ValueNotifier<Map<String, dynamic>>({});
 bool bSongChange = false;
@@ -150,6 +151,7 @@ Future<void> downloadPlayerList() async {
   if (gameSnapshot.exists) {
     // Clear the locally stored lobby
     playerList.value.clear();
+    scoreboard.value.clear();
 
     // Parse the server data for the list of players
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
@@ -159,9 +161,12 @@ Future<void> downloadPlayerList() async {
     players.forEach(
       (key, value) {
         Player newPlayer = Player(key);
+        newPlayer.score = value;
         playerList.value.add(newPlayer);
       },
     );
+
+    print(playerList.value);
 
     // Initialize all of them
     initAllPlayers();
@@ -221,12 +226,18 @@ void navigateToFinishPage() {
       builder: (context) => FinishPage(playerWon: playerWon)));
 }
 
-void navigateToResultPage() {
+Future<void> handleScoring() async {
   for (int i = 0; i < playerList.value.length; i++) {
     if (playerList.value[i].user_id == local_client_id && correctGuess) {
-      playerList.value[i].score += 10;
+      // playerList.value[i].score += 10;
+      await firestoreService.Client_incrementScore(10);
+      await initAllPlayers();
     }
   }
+}
+
+Future<void> navigateToResultPage() async {
+  await handleScoring();
 
   navigatorKey.currentState!.push(
     MaterialPageRoute(
@@ -283,6 +294,30 @@ class FirestoreController {
       // Access fields from gameData
       current_track = gameData['current_track'];
       bSongChange = true;
+    }
+  }
+
+  Future<void> Client_incrementScore(int value) async {
+    DocumentSnapshot gameSnapshot = await FirebaseFirestore.instance
+        .collection('games')
+        .doc(server_id)
+        .get();
+
+    if (gameSnapshot.exists) {
+      Map<String, dynamic> gameData =
+          gameSnapshot.data() as Map<String, dynamic>;
+      // Access fields from gameData
+      Map<String, dynamic>? players =
+          gameData['players'] as Map<String, dynamic>?;
+
+      int previousScore = players![local_client_id];
+
+      DocumentReference gameRef =
+          FirebaseFirestore.instance.collection('games').doc(server_id);
+
+      await gameRef.update({'players.$local_client_id': previousScore + value});
+
+      print("new score: ${previousScore + value}");
     }
   }
 
