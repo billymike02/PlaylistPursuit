@@ -326,8 +326,6 @@ class FirestoreController {
           FirebaseFirestore.instance.collection('games').doc(server_id);
 
       await gameRef.update({'players.$local_client_id': previousScore + value});
-
-      print("new score: ${previousScore + value}");
     }
   }
 

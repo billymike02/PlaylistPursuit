@@ -474,7 +474,7 @@ class _ResultPageState extends State<ResultPage> {
                 child: Column(
                   children: [
                     TimerBar(
-                      backgroundColor: Color.fromARGB(255, 131, 0, 0),
+                      backgroundColor: spotifyGrey,
                       progressColor: Colors.white,
                       period: Duration(seconds: 5),
                       onComplete: _proceedToNextPage,
