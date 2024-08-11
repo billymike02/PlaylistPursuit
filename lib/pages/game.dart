@@ -83,7 +83,7 @@ class _GuessingPageState extends State<GuessingPage> {
 
     List<String> guilty_players = [...queued_tracks.value.values];
     guiltyPlayer = playerList.value
-        .firstWhere((element) => guilty_players[0] == element.user_id);
+        .firstWhere((element) => guilty_players[0] == element.getUserID());
     queued_tracks.value.remove(new_song);
 
     getNewTrack();
@@ -190,7 +190,7 @@ class _GuessingPageState extends State<GuessingPage> {
                       itemCount: playerList.value.length,
                       itemBuilder: (context, index) {
                         if (local_client_id ==
-                            playerList.value[index].user_id) {
+                            playerList.value[index].getUserID()) {
                           return Container();
                         }
                         return Container(
@@ -202,7 +202,7 @@ class _GuessingPageState extends State<GuessingPage> {
                               });
                             },
                             child: Text(
-                              playerList.value[index].display_name,
+                              playerList.value[index].getDisplayName(),
                               style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -370,7 +370,7 @@ class _ResultPageState extends State<ResultPage> {
   void initState() {
     super.initState();
     isCorrect = widget.isCorrect;
-    correctChoice = widget.guiltyPlayer.display_name;
+    correctChoice = widget.guiltyPlayer.getDisplayName();
   }
 
   void _proceedToNextPage() {
@@ -417,7 +417,7 @@ class _ResultPageState extends State<ResultPage> {
           ),
           const SizedBox(height: 20),
           ClipOval(
-              child: Image.network(widget.guiltyPlayer.image,
+              child: Image.network(widget.guiltyPlayer.getImageURL(),
                   width: 200, height: 200, fit: BoxFit.cover)),
           Text(correctChoice,
               style: TextStyle(
@@ -452,7 +452,7 @@ class _ResultPageState extends State<ResultPage> {
                   itemBuilder: (context, index) {
                     final playerInstance = playerList.value[index];
 
-                    if (playerInstance.isInitialized == false) {
+                    if (playerInstance.isInitialized() == false) {
                       return Container();
                     }
                     return Padding(
@@ -563,7 +563,7 @@ class _FinishPageState extends State<FinishPage> {
                   itemBuilder: (context, index) {
                     final playerInstance = playerList.value[index];
 
-                    if (playerInstance.isInitialized == false) {
+                    if (playerInstance.isInitialized() == false) {
                       return Container();
                     }
                     return Padding(

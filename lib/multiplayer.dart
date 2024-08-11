@@ -74,13 +74,12 @@ Future<void> debug_addRemotePlayers() async {
 
 Future<void> initAllPlayers() async {
   await Future.forEach(playerList.value, (Player instance) async {
-    if (!instance.isInitialized) {
-      await instance.initPlayer();
-      String display_name = instance.display_name;
-      // print("🟢 Player $display_name joined lobby.");
+    while (instance.isInitialized() == false)
+      await Future.delayed(Duration(milliseconds: 10));
 
-      playerList.notifyListeners();
-    }
+    String display_name = instance.getDisplayName();
+
+    playerList.notifyListeners();
   });
 }
 
@@ -211,7 +210,7 @@ void navigateToFinishPage() {
 
   // if the local player has >= maximum score then they win
   if (playerList.value.any((element) =>
-      element.user_id == local_client_id && element.score == maxValue)) {
+      element.getUserID() == local_client_id && element.score == maxValue)) {
     playerWon = true;
   }
 
@@ -221,7 +220,7 @@ void navigateToFinishPage() {
 
 Future<void> handleScoring() async {
   for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].user_id == local_client_id && correctGuess) {
+    if (playerList.value[i].getUserID() == local_client_id && correctGuess) {
       // playerList.value[i].score += 10;
       await firestoreService.Client_incrementScore(10);
       await initAllPlayers();
@@ -284,12 +283,10 @@ class FirestoreController {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
 
-    String playerId = playerInstance.user_id;
+    String playerId = playerInstance.getUserID();
 
     await gameRef
-        .update({'players.$playerId': FieldValue.delete()}).whenComplete(() {
-      print("player removed from map");
-    });
+        .update({'players.$playerId': FieldValue.delete()}).whenComplete(() {});
   }
 
   Future<void> Client_downloadCurrentTrack() async {

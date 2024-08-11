@@ -16,7 +16,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String profile_name = "player";
+
   TextEditingController _textController = TextEditingController();
   String _inputText = '';
 
@@ -33,7 +33,6 @@ class _HomePageState extends State<HomePage> {
     }
 
     local_client_id = await getLocalUserID();
-    profile_name = await getDisplayName(local_client_id);
   }
 
   @override

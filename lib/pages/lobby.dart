@@ -236,7 +236,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       itemBuilder: (context, index) {
                         final playerInstance = playerList.value[index];
 
-                        if (playerInstance.isInitialized == false) {
+                        if (playerInstance.isInitialized() == false) {
                           return Container();
                         }
                         return Padding(
@@ -785,10 +785,15 @@ class _SongListingState extends State<SongListing> {
         {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
   }
 
+  Future<void> _awaitTrackLoad() async {
+    while (widget.track.isInitialized() == false)
+      await Future.delayed(Duration(milliseconds: 10));
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
-      future: widget.track.fetchTrackData(),
+      future: _awaitTrackLoad(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container();
@@ -925,11 +930,11 @@ class _PlayerListingState extends State<PlayerListing> {
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
     // if the user is remote and the local user is the host then able kicking
-    if (widget.playerInstance.user_id != local_client_id &&
+    if (widget.playerInstance.getUserID() != local_client_id &&
         await getHost(local_client_id)) {
       enableKicking = true;
       bHost = false;
-    } else if (await getHost(widget.playerInstance.user_id)) {
+    } else if (await getHost(widget.playerInstance.getUserID())) {
       bHost = true;
     }
 
@@ -956,7 +961,7 @@ class _PlayerListingState extends State<PlayerListing> {
         children: [
           ClipOval(
             child: Image.network(
-              widget.playerInstance.image,
+              widget.playerInstance.getImageURL(),
               width: 35,
               height: 35,
               fit: BoxFit.cover,
@@ -965,7 +970,7 @@ class _PlayerListingState extends State<PlayerListing> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              widget.playerInstance.display_name,
+              widget.playerInstance.getDisplayName(),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -1008,7 +1013,7 @@ class _PlayerListingState extends State<PlayerListing> {
                     return CupertinoAlertDialog(
                       title: Text("Confirm"),
                       content: Text(
-                          "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
+                          "Are you sure you want to kick ${widget.playerInstance.getDisplayName()} from the lobby?"),
                       actions: [
                         CupertinoDialogAction(
                           child: Text(
