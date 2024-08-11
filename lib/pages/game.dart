@@ -67,6 +67,8 @@ class _GuessingPageState extends State<GuessingPage> {
   void initState() {
     super.initState();
 
+    buttonsPressed = [];
+
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }

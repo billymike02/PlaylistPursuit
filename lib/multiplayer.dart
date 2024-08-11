@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -159,21 +161,6 @@ Future<void> downloadPlayerList() async {
       },
     );
 
-    if (players.containsKey(local_client_id) == false) {
-      await ensureTokenIsValid();
-
-      String gameCode = generateGameCode();
-
-      navigatorKey.currentState!.push(
-        MaterialPageRoute(
-            builder: (context) => LobbyPage(
-                  gameCode: gameCode,
-                  init: true,
-                  bKicked: true,
-                )),
-      );
-    }
-
     // Initialize all of them
     initAllPlayers();
   } else {
@@ -272,6 +259,7 @@ void navigateToGuessingPage() {
 
 class FirestoreController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subscription;
 
   // Saved fields for update checking
   Map<String, dynamic> previousPlayerList = {};
@@ -288,18 +276,20 @@ class FirestoreController {
     previousCurrentTrack = "";
   }
 
+  void stopListening() {
+    _subscription?.cancel();
+  }
+
   Future<void> removePlayerFromServer(Player playerInstance) async {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
 
     String playerId = playerInstance.user_id;
 
-    try {
-      await gameRef.update({'players.$playerId': FieldValue.delete()});
-    } catch (e) {
-      // Handle any errors that might occur during the update
-      print("Error removing player: $e");
-    }
+    await gameRef
+        .update({'players.$playerId': FieldValue.delete()}).whenComplete(() {
+      print("player removed from map");
+    });
   }
 
   Future<void> Client_downloadCurrentTrack() async {
@@ -371,13 +361,27 @@ class FirestoreController {
   }
 
   void listenForChanges() {
-    _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
+    _subscription =
+        _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
       if (snapshot.exists) {
         Map<String, dynamic> currentPlayerList =
             snapshot.data()!['players'] as Map<String, dynamic>;
 
         if (mapEquals(previousPlayerList, {}) ||
             _playerListHasChanged(currentPlayerList)) {
+          if (currentPlayerList.containsKey(local_client_id) == false) {
+            String gameCode = generateGameCode();
+
+            navigatorKey.currentState!.push(
+              MaterialPageRoute(
+                  builder: (context) => LobbyPage(
+                        gameCode: gameCode,
+                        init: true,
+                        bKicked: true,
+                      )),
+            );
+            return;
+          }
           _onPlayerListChange();
         }
 

@@ -81,17 +81,17 @@ class _LobbyPageState extends State<LobbyPage> {
   void initState() {
     super.initState();
 
-    _handleLobbySetup();
-
     if (widget.bKicked)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // This code will run after the build is complete
         showKickedMessage();
       });
+
+    _handleLobbySetup();
   }
 
-  void removePlayer(Player playerInstance) {
-    firestoreService.removePlayerFromServer(playerInstance);
+  Future<void> removePlayer(Player playerInstance) async {
+    await firestoreService.removePlayerFromServer(playerInstance);
   }
 
   Widget build(BuildContext context) {
