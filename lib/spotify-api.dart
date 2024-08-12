@@ -53,11 +53,19 @@ class Player {
   late String _display_name;
   late String _image;
   bool _isInitialized = false;
-  int score = 0;
+  int _score = 0;
 
   Player(this._user_id) {
     // on creation, grab the data from Spotify
     _fetchData();
+  }
+
+  int getScore() {
+    return _score;
+  }
+
+  void setScore(int value) {
+    _score = value;
   }
 
   bool isInitialized() {
@@ -88,7 +96,7 @@ class Player {
 
   @override
   String toString() {
-    if (_isInitialized) return "Name: $_display_name, Score: $score";
+    if (_isInitialized) return "Name: $_display_name, Score: $_score";
 
     return "<unknown-player>";
   }

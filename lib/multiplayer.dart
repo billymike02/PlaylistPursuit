@@ -155,7 +155,7 @@ Future<void> downloadPlayerList() async {
     players.forEach(
       (key, value) {
         Player newPlayer = Player(key);
-        newPlayer.score = value;
+        newPlayer.setScore(value);
         playerList.value.add(newPlayer);
       },
     );
@@ -201,8 +201,8 @@ void navigateToFinishPage() {
   int maxValue = 0;
 
   for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].score >= maxValue) {
-      maxValue = playerList.value[i].score;
+    if (playerList.value[i].getScore() >= maxValue) {
+      maxValue = playerList.value[i].getScore();
     }
   }
 
@@ -210,7 +210,8 @@ void navigateToFinishPage() {
 
   // if the local player has >= maximum score then they win
   if (playerList.value.any((element) =>
-      element.getUserID() == local_client_id && element.score == maxValue)) {
+      element.getUserID() == local_client_id &&
+      element.getScore() == maxValue)) {
     playerWon = true;
   }
 

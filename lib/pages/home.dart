@@ -16,9 +16,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
   TextEditingController _textController = TextEditingController();
   String _inputText = '';
+  String localName = "new user";
 
   Future<void> _attemptLogin() async {
     bool result = await authenticateUser();
@@ -38,8 +38,19 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+  }
 
-    _attemptLogin();
+  Future<String> _getDisplayName() async {
+    await _attemptLogin();
+    Player localPlayer = Player(local_client_id);
+
+    while (!localPlayer.isInitialized()) {
+      await Future.delayed(
+          Duration(seconds: 1)); // Change to 1 second to be more responsive
+    }
+
+    localName = localPlayer.getDisplayName();
+    return localName;
   }
 
   @override
@@ -47,29 +58,6 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: spotifyBlack,
       body: Stack(children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Padding(
-            //   padding: EdgeInsets.only(top: 30, left: 20),
-            //   child: ShaderMask(
-            //     shaderCallback: (bounds) => LinearGradient(
-            //       colors: [Colors.deepPurple.shade700, Colors.purple],
-            //       tileMode: TileMode.decal,
-            //     ).createShader(bounds),
-            //     child: Text(
-            //       'Welcome, $profile_name',
-            //       style: TextStyle(
-            //         fontSize: 40,
-            //         color: Colors
-            //             .white, // The color will be replaced by the gradient
-            //         fontWeight: FontWeight.w800,
-            //       ),
-            //     ),
-            //   ),
-            // ),
-          ],
-        ),
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -91,82 +79,93 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               Spacer(),
-              Container(
-                width: MediaQuery.of(context).size.width * 0.8,
-                child: Column(children: [
-                  Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 24.0, vertical: 6.0),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                          color: Colors.white, width: 1), // White border
-                      borderRadius:
-                          BorderRadius.circular(50), // Rounded corners
-                    ),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      color:
-                          Colors.transparent, // Transparent button background
-                      child: Row(
-                        children: [
-                          Icon(Icons.multitrack_audio_sharp,
-                              color: Colors.white),
-                          SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.06),
-                          Text(
-                            'Connect to Spotify',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      onPressed: () async {
-                        connectUserToSpotify();
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    height: 5,
-                  ),
-                  Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 24.0, vertical: 6.0),
-                    decoration: BoxDecoration(
-                      color: spotifyGreen, // Background color for the button
-                      borderRadius:
-                          BorderRadius.circular(50), // Rounded corners
-                    ),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      color:
-                          Colors.transparent, // Transparent button background
-                      child: Row(
-                        children: [
-                          Text(
-                            'Play with Friends',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
-                        mainAxisAlignment: MainAxisAlignment.center,
-                      ),
-                      onPressed: () {
-                        showTextFieldDialog(context);
-                      },
-                    ),
-                  ),
-                ]),
+              FutureBuilder<String>(
+                future:
+                    _getDisplayName(), // Call the method that sets the state
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text(
+                      "Loading player data...",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500),
+                    );
+                  } else if (snapshot.hasError) {
+                    return Text(
+                      "Error: ${snapshot.error}",
+                      style: TextStyle(color: Colors.red, fontSize: 18),
+                    );
+                  } else {
+                    return Text(
+                      "Hey 👋 $localName",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500),
+                    );
+                  }
+                },
               ),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.1,
+                height: 20,
+              ),
+              Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  child: Column(children: [
+                    Container(
+                      height: 60,
+                      child: CupertinoButton(
+                        color: spotifyGrey, // Transparent button background
+                        child: Row(
+                          children: [
+                            Text(
+                              'Link Spotify Account',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                        onPressed: () async {
+                          connectUserToSpotify();
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    Container(
+                      height: 60,
+                      child: CupertinoButton(
+                        color: CupertinoColors
+                            .activeGreen, // Transparent button background
+                        child: Row(
+                          children: [
+                            Text(
+                              'Play with Friends',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                        onPressed: () {
+                          showTextFieldDialog(context);
+                        },
+                      ),
+                    ),
+                  ])),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.14,
               ),
             ],
           ),
@@ -187,11 +186,7 @@ class _HomePageState extends State<HomePage> {
           content: SizedBox(
             height: 45,
             child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  // Update any state related to the text field here
-                });
-              },
+              keyboardType: TextInputType.number,
               textAlignVertical: TextAlignVertical.bottom,
               controller: _textController,
               decoration: const InputDecoration(
@@ -260,14 +255,14 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: CupertinoButton(
                       padding: EdgeInsets.symmetric(horizontal: 10),
-                      color: spotifyGreen,
+                      color: CupertinoColors.activeGreen,
                       child: Container(
                         child: Row(
                           children: [
                             Text(
                               "Join",
                               style: TextStyle(
-                                  color: Colors.white,
+                                  color: Colors.black,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500),
                             ),
@@ -277,7 +272,7 @@ class _HomePageState extends State<HomePage> {
                             Icon(
                               Icons.connect_without_contact_rounded,
                               size: 22,
-                              color: Colors.white,
+                              color: Colors.black,
                             ),
                           ],
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -449,7 +444,7 @@ class _GamemodeState extends State<Gamemode> {
                 Expanded(
                   child: CupertinoButton(
                       padding: EdgeInsets.symmetric(horizontal: 10),
-                      color: spotifyGreen,
+                      color: CupertinoColors.activeGreen,
                       child: Container(
                         child: Row(
                           children: [
@@ -579,7 +574,7 @@ class _GamemodeState extends State<Gamemode> {
                 },
                 child: Icon(
                   Icons.play_circle_fill_rounded,
-                  color: spotifyGreen,
+                  color: CupertinoColors.activeGreen,
                   size: 80,
                 )),
           ])),

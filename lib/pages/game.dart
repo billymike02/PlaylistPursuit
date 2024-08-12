@@ -233,7 +233,7 @@ class _GuessingPageState extends State<GuessingPage> {
                   ),
                   if (bLocalHost.value == true)
                     Container(
-                      width: MediaQuery.of(context).size.width * 0.5,
+                      width: MediaQuery.of(context).size.width * 0.9,
                       height: MediaQuery.of(context).size.height * 0.07,
                       child: CupertinoButton(
                         padding: EdgeInsets.symmetric(horizontal: 10),
@@ -245,10 +245,10 @@ class _GuessingPageState extends State<GuessingPage> {
                           child: Row(
                             children: [
                               Text(
-                                "Next Song",
+                                "Next",
                                 style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 16,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.w500),
                               ),
                               SizedBox(
@@ -256,7 +256,7 @@ class _GuessingPageState extends State<GuessingPage> {
                               ),
                               Icon(
                                 Icons.skip_next_rounded,
-                                size: 25,
+                                size: 30,
                                 color: Colors.black,
                               ),
                             ],
@@ -693,7 +693,7 @@ class _EndPageState extends State<EndPage> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: spotifyGreen,
+                    backgroundColor: CupertinoColors.activeGreen,
                     minimumSize: Size(70, 50) // Change button color to purple
                     ),
                 child: const Text(

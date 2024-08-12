@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:oauth2_client/access_token_response.dart';
 import 'package:queue_quandry/pages/home.dart';
@@ -143,8 +144,8 @@ class _LoginPageState extends State<LoginPage> {
                       });
                     },
                     style: ButtonStyle(
-                      backgroundColor:
-                          MaterialStateProperty.all<Color>(spotifyGreen),
+                      backgroundColor: MaterialStateProperty.all<Color>(
+                          CupertinoColors.activeGreen),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
