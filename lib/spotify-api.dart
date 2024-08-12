@@ -152,7 +152,7 @@ Future<void> pausePlayback() async {
     );
   }
 
-  print("Paused playback");
+  
 }
 
 Future<void> resumePlayback() async {
@@ -451,6 +451,12 @@ Future<void> createPlaylist(String playlistName) async {
 }
 
 Future<void> addTracksToPlaylist(String playlistId) async {
+  List<String> song_uris = [];
+
+  for (int i = 0; i < queued_tracks.value.length; i++) {
+    song_uris.add('spotify:track:${queued_tracks.value[i].keys.first}');
+  }
+
   final response = await http.post(
     Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
     headers: {
@@ -458,11 +464,11 @@ Future<void> addTracksToPlaylist(String playlistId) async {
       'Content-Type': 'application/json',
     },
     body: json.encode({
-      'uris':
-          queued_tracks.value.keys.map((id) => 'spotify:track:$id').toList(),
+      'uris': song_uris,
     }),
   );
 }
+
 
 Future<void> setVolumeLevel(int percent) async {
   final url = Uri.parse('https://api.spotify.com/v1/me/player/volume');

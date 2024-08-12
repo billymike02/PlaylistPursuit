@@ -20,6 +20,7 @@ bool correctGuess = false;
 List<bool> buttonsPressed = [];
 
 String current_track = "";
+int queue_pos = 0;
 
 class GuessingPage extends StatefulWidget {
   GuessingPage({
@@ -49,7 +50,6 @@ class _GuessingPageState extends State<GuessingPage> {
     }
 
     await firestoreService.Client_downloadCurrentTrack();
-    // print("bSongChange: $current_track");
     bSongChange = false;
 
     var data = await getTrackInfo(current_track);
@@ -63,11 +63,21 @@ class _GuessingPageState extends State<GuessingPage> {
     setState(() {});
   }
 
+  void _handleButtonPressed(int index, String buttonName) {
+
+    buttonsPressed[index] = true;
+
+    if (buttonName == guiltyPlayer.getUserID()) {
+      correctGuess = true;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
     buttonsPressed = [];
+    correctGuess = false;
 
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
@@ -75,17 +85,27 @@ class _GuessingPageState extends State<GuessingPage> {
 
     String new_song = "NULL";
     if (bLocalHost.value == true) {
-      playbackQueue = [...queued_tracks.value.keys];
-      new_song = playbackQueue[0];
+      playbackQueue = [];
 
-      firestoreService.Host_setCurrentTrack(new_song);
+      for (int i = 0; i < queued_tracks.value.length; i++) {
+        new_song = queued_tracks.value[i].keys.first;
+        playbackQueue.add(new_song);
+      }
+
+      firestoreService.Host_setCurrentTrack(playbackQueue[queue_pos]);
     }
 
-    List<String> guilty_players = [...queued_tracks.value.values];
-    guiltyPlayer = playerList.value
-        .firstWhere((element) => guilty_players[0] == element.getUserID());
+    List<String> guilty_players = [];
+
+    for (int i = 0; i < queued_tracks.value.length; i++) {
+      String guiltyName = queued_tracks.value[i].values.first;
+      guilty_players.add(guiltyName);
+    }
+
+    guiltyPlayer = Player(queued_tracks.value[queue_pos].values.first);
     queued_tracks.value.remove(new_song);
 
+    queue_pos++;
     getNewTrack();
   }
 
@@ -93,22 +113,6 @@ class _GuessingPageState extends State<GuessingPage> {
   void dispose() {
     timer?.cancel();
     super.dispose();
-  }
-
-  void _handleButtonPressed(int buttonIndex) {
-    setState(() {
-      for (int i = 0; i < buttonsPressed.length; i++) {
-        buttonsPressed[i] = false;
-      }
-
-      buttonsPressed[buttonIndex] = true;
-
-      if (buttonIndex == playerList.value.indexOf(guiltyPlayer)) {
-        correctGuess = true;
-      } else {
-        correctGuess = false;
-      }
-    });
   }
 
   Future<void> _handlePause() async {
@@ -189,20 +193,24 @@ class _GuessingPageState extends State<GuessingPage> {
                       shrinkWrap: true,
                       itemCount: playerList.value.length,
                       itemBuilder: (context, index) {
-                        if (local_client_id ==
-                            playerList.value[index].getUserID()) {
+                        Player buttonPlayer = playerList.value[index];
+
+                        // don't draw a button with the local player's name
+                        if (local_client_id == buttonPlayer.getUserID()) {
                           return Container();
                         }
+
                         return Container(
                           padding: EdgeInsets.symmetric(vertical: 5),
                           child: ElevatedButton(
                             onPressed: () {
                               setState(() {
-                                _handleButtonPressed(index);
+                                _handleButtonPressed(
+                                    index, buttonPlayer.getUserID());
                               });
                             },
                             child: Text(
-                              playerList.value[index].getDisplayName(),
+                              buttonPlayer.getDisplayName(),
                               style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -377,7 +385,7 @@ class _ResultPageState extends State<ResultPage> {
     // only change the page if you're the host
     if (bLocalHost.value == false) return;
 
-    if (playbackQueue.length - 1 > 0) {
+    if (queue_pos < playbackQueue.length) {
       firestoreService.Host_SetGameState(2);
     } else {
       firestoreService.Host_SetGameState(4);

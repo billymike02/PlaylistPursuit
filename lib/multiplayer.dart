@@ -12,8 +12,7 @@ import 'spotify-api.dart';
 String local_client_id = "<no-user>";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
 ValueNotifier<List<int>> scoreboard = ValueNotifier<List<int>>([]);
-ValueNotifier<Map<String, dynamic>> queued_tracks =
-    ValueNotifier<Map<String, dynamic>>({});
+ValueNotifier<List<dynamic>> queued_tracks = ValueNotifier<List<dynamic>>([]);
 bool bSongChange = false;
 
 // Store the game ID locally
@@ -45,7 +44,7 @@ Future<void> initLobby(String gameCode) async {
     await newGameRef.set({
       'players': {},
       'created_at': FieldValue.serverTimestamp(),
-      'queued_tracks': {},
+      'queued_tracks': [],
       'game_state':
           0, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
       'host': local_client_id,
@@ -132,6 +131,7 @@ Future<void> downloadTrackQueue() async {
 
     // Parse the server data for the list of players
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
+
     queued_tracks.value = gameData['queued_tracks'];
   } else {
     print('Document does not exist');
@@ -178,8 +178,6 @@ Future<int> joinGame(String gameCode) async {
       // Add the local player to the session
       await gameRef.update({'players.$local_client_id': 0});
 
-      // print('Joined game with ID: $gameCode');
-
       // Now we need to update the local fields with the data fetched from the server
       server_id = gameCode;
       bLocalHost.value = await getHost(local_client_id);
@@ -220,12 +218,9 @@ void navigateToFinishPage() {
 }
 
 Future<void> handleScoring() async {
-  for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].getUserID() == local_client_id && correctGuess) {
-      // playerList.value[i].score += 10;
-      await firestoreService.Client_incrementScore(10);
-      await initAllPlayers();
-    }
+  if (correctGuess) {
+    await firestoreService.Client_incrementScore(10);
+    await initAllPlayers();
   }
 }
 
@@ -263,14 +258,14 @@ class FirestoreController {
 
   // Saved fields for update checking
   Map<String, dynamic> previousPlayerList = {};
-  Map<String, dynamic> previousTrackQueue = {};
+  List<Map<String, dynamic>> previousTrackQueue = [];
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
   String previousCurrentTrack = "";
 
   void ResetData() {
     previousPlayerList = {};
-    previousTrackQueue = {};
+    previousTrackQueue = [];
     previousGameState = 0;
     previousSongsPerPlayer = 3;
     previousCurrentTrack = "";
@@ -383,15 +378,14 @@ class FirestoreController {
 
         previousPlayerList = Map<String, dynamic>.from(currentPlayerList);
 
-        Map<String, dynamic> currentTrackQueue =
-            snapshot.data()!['queued_tracks'] as Map<String, dynamic>;
+        List<dynamic> currentTrackQueue = snapshot.data()!['queued_tracks'];
 
-        if (mapEquals(previousTrackQueue, {}) ||
+        if (previousTrackQueue == [] ||
             _trackQueueHasChanged(currentTrackQueue)) {
           _onTrackQueueChange();
         }
 
-        previousTrackQueue = Map<String, dynamic>.from(currentTrackQueue);
+        previousTrackQueue = List<Map<String, dynamic>>.from(currentTrackQueue);
 
         int currentGameState = snapshot.data()!['game_state'];
 
@@ -412,8 +406,6 @@ class FirestoreController {
         String currentTrack = snapshot.data()!['current_track'];
 
         if (previousCurrentTrack != currentTrack) {
-          // print('track has changed');
-
           _onCurrentTrackChange(currentTrack);
         }
 
@@ -459,9 +451,8 @@ class FirestoreController {
     downloadTrackQueue();
   }
 
-  bool _trackQueueHasChanged(Map<String, dynamic> currentMap) {
-    return previousTrackQueue.isNotEmpty &&
-        !mapEquals(previousTrackQueue, currentMap);
+  bool _trackQueueHasChanged(List<dynamic> currentMap) {
+    return true;
   }
 
   bool _playerListHasChanged(Map<String, dynamic> currentMap) {
@@ -482,5 +473,18 @@ class FirestoreController {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
     await gameRef.update({'game_state': newState});
+  }
+
+  Future<void> Host_clearQueue() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+
+    DocumentSnapshot gameDoc = await gameRef.get();
+
+    if (gameDoc.exists) {
+      // Add the local player to the session
+      await gameRef.update({'queued_tracks': []});
+      queued_tracks.notifyListeners();
+    }
   }
 }

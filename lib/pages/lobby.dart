@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:queue_quandry/pages/home.dart';
@@ -461,8 +462,11 @@ class _QueuePageState extends State<QueuePage> {
   void initState() {
     super.initState();
 
+    queue_pos = 0;
     playbackQueue = [];
     local_songsQueued = 0;
+    firestoreService.Host_clearQueue();
+    
     _fetchTopSongsFuture = fetchTopSongs();
 
     _getHostingStatus();
@@ -617,18 +621,11 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder<Map<String, dynamic>>(
+            ValueListenableBuilder<List<dynamic>>(
                 valueListenable: queued_tracks,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
-                    bool _enableButton = true; // true jsut for debug
-
-                    if (widget.songsPerPlayer - queued_tracks.value.length <=
-                        0) {
-                      _enableButton = true;
-                    }
-
-                    if (_enableButton && bLocalHost.value == true) {
+                    if (bLocalHost.value == true) {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
@@ -780,7 +777,8 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (queued_tracks.value.entries.contains(widget.track.track_id)) {
+    if (queued_tracks.value
+        .any((map) => map.containsKey(widget.track.track_id))) {
       isChecked.value = true;
     }
   }
@@ -789,16 +787,55 @@ class _SongListingState extends State<SongListing> {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
-    await gameRef
-        .update({'queued_tracks.${widget.track.track_id}': local_client_id});
+    // Fetch the current data from the document
+    DocumentSnapshot docSnapshot = await gameRef.get();
+
+    if (docSnapshot.exists) {
+      // Get the current list
+      List<dynamic> currentList =
+          List<dynamic>.from(docSnapshot.get('queued_tracks') ?? []);
+
+      // Add the new entry to the list
+      currentList.add({widget.track.track_id: local_client_id});
+
+      // Update the document with the new list
+      await gameRef.update({'queued_tracks': currentList});
+      queued_tracks.notifyListeners();
+    } else {
+      // Handle the case where the document does not exist
+      print("Document does not exist.");
+    }
   }
 
   Future<void> _firestoreRemoveSong() async {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
-    await gameRef.update(
-        {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
+    // Fetch the current data from the document
+    DocumentSnapshot docSnapshot = await gameRef.get();
+
+    if (docSnapshot.exists) {
+      // Get the current list
+      List<dynamic> currentList =
+          List<dynamic>.from(docSnapshot.get('queued_tracks') ?? []);
+
+      // Remove the map from the list using custom equality check
+      currentList.removeWhere((item) {
+        if (item is Map<String, dynamic>) {
+          // Check if the map matches the map to remove
+          return MapEquality()
+              .equals(item, {widget.track.track_id: local_client_id});
+        }
+        return false;
+      });
+
+      // Update the document with the new list
+      await gameRef.update({'queued_tracks': currentList});
+      queued_tracks.notifyListeners();
+    } else {
+      // Handle the case where the document does not exist
+      print("Document does not exist.");
+    }
   }
 
   Future<void> _awaitTrackLoad() async {
