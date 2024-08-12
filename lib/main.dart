@@ -54,29 +54,3 @@ class MapEquality {
         map2.containsKey(entry.key) && map2[entry.key] == entry.value);
   }
 }
-
-bool areListsOfMapsEqual(List<dynamic> list1, List<dynamic> list2) {
-  // Check if both lists are actually lists of maps
-  if (!list1.every((item) => item is Map<String, dynamic>) ||
-      !list2.every((item) => item is Map<String, dynamic>)) {
-    throw ArgumentError(
-        'Both lists must contain maps of type Map<String, dynamic>');
-  }
-
-  List<Map<String, dynamic>> maps1 = List<Map<String, dynamic>>.from(list1);
-  List<Map<String, dynamic>> maps2 = List<Map<String, dynamic>>.from(list2);
-
-  if (maps1.length != maps2.length) return false;
-
-  // Sort the lists to make the comparison order-independent
-  maps1.sort((a, b) => a.toString().compareTo(b.toString()));
-  maps2.sort((a, b) => a.toString().compareTo(b.toString()));
-
-  for (int i = 0; i < maps1.length; i++) {
-    if (!MapEquality().equals(maps1[i], maps2[i])) {
-      return false;
-    }
-  }
-
-  return true;
-}

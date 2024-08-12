@@ -151,8 +151,6 @@ Future<void> pausePlayback() async {
       },
     );
   }
-
-  
 }
 
 Future<void> resumePlayback() async {
@@ -443,8 +441,6 @@ Future<void> createPlaylist(String playlistName) async {
 
     // Add tracks to the newly created playlist
     await addTracksToPlaylist(playlistId);
-
-    print('Playlist created successfully.');
   } else {
     throw Exception('Failed to create playlist: ${response.reasonPhrase}');
   }
@@ -453,8 +449,8 @@ Future<void> createPlaylist(String playlistName) async {
 Future<void> addTracksToPlaylist(String playlistId) async {
   List<String> song_uris = [];
 
-  for (int i = 0; i < queued_tracks.value.length; i++) {
-    song_uris.add('spotify:track:${queued_tracks.value[i].keys.first}');
+  for (int i = 0; i < playlist.value.length; i++) {
+    song_uris.add('spotify:track:${playlist.value[i].keys.first}');
   }
 
   final response = await http.post(
@@ -468,7 +464,6 @@ Future<void> addTracksToPlaylist(String playlistId) async {
     }),
   );
 }
-
 
 Future<void> setVolumeLevel(int percent) async {
   final url = Uri.parse('https://api.spotify.com/v1/me/player/volume');

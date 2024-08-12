@@ -466,7 +466,7 @@ class _QueuePageState extends State<QueuePage> {
     playbackQueue = [];
     local_songsQueued = 0;
     firestoreService.Host_clearQueue();
-    
+
     _fetchTopSongsFuture = fetchTopSongs();
 
     _getHostingStatus();
@@ -622,14 +622,14 @@ class _QueuePageState extends State<QueuePage> {
               height: 10,
             ),
             ValueListenableBuilder<List<dynamic>>(
-                valueListenable: queued_tracks,
+                valueListenable: playlist,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
                     if (bLocalHost.value == true) {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
-                      if (queued_tracks.value.length >= start_requirment) {
+                      if (playlist.value.length >= start_requirment) {
                         return Center(
                           child: CupertinoButton(
                               color: CupertinoColors.activeBlue,
@@ -777,8 +777,7 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (queued_tracks.value
-        .any((map) => map.containsKey(widget.track.track_id))) {
+    if (playlist.value.any((map) => map.containsKey(widget.track.track_id))) {
       isChecked.value = true;
     }
   }
@@ -793,14 +792,14 @@ class _SongListingState extends State<SongListing> {
     if (docSnapshot.exists) {
       // Get the current list
       List<dynamic> currentList =
-          List<dynamic>.from(docSnapshot.get('queued_tracks') ?? []);
+          List<dynamic>.from(docSnapshot.get('playlist') ?? []);
 
       // Add the new entry to the list
       currentList.add({widget.track.track_id: local_client_id});
 
       // Update the document with the new list
-      await gameRef.update({'queued_tracks': currentList});
-      queued_tracks.notifyListeners();
+      await gameRef.update({'playlist': currentList});
+      playlist.notifyListeners();
     } else {
       // Handle the case where the document does not exist
       print("Document does not exist.");
@@ -817,7 +816,7 @@ class _SongListingState extends State<SongListing> {
     if (docSnapshot.exists) {
       // Get the current list
       List<dynamic> currentList =
-          List<dynamic>.from(docSnapshot.get('queued_tracks') ?? []);
+          List<dynamic>.from(docSnapshot.get('playlist') ?? []);
 
       // Remove the map from the list using custom equality check
       currentList.removeWhere((item) {
@@ -830,8 +829,8 @@ class _SongListingState extends State<SongListing> {
       });
 
       // Update the document with the new list
-      await gameRef.update({'queued_tracks': currentList});
-      queued_tracks.notifyListeners();
+      await gameRef.update({'playlist': currentList});
+      playlist.notifyListeners();
     } else {
       // Handle the case where the document does not exist
       print("Document does not exist.");
