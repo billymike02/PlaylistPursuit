@@ -12,8 +12,7 @@ import 'spotify-api.dart';
 String local_client_id = "<no-user>";
 ValueNotifier<List<Player>> playerList = ValueNotifier<List<Player>>([]);
 ValueNotifier<List<int>> scoreboard = ValueNotifier<List<int>>([]);
-ValueNotifier<Map<String, dynamic>> queued_tracks =
-    ValueNotifier<Map<String, dynamic>>({});
+ValueNotifier<List<dynamic>> playlist = ValueNotifier<List<dynamic>>([]);
 bool bSongChange = false;
 
 // Store the game ID locally
@@ -45,7 +44,7 @@ Future<void> initLobby(String gameCode) async {
     await newGameRef.set({
       'players': {},
       'created_at': FieldValue.serverTimestamp(),
-      'queued_tracks': {},
+      'playlist': [],
       'game_state':
           0, // where 0 means lobby, 1 means queueing, 2 means playing/guessing, etc...
       'host': local_client_id,
@@ -74,13 +73,12 @@ Future<void> debug_addRemotePlayers() async {
 
 Future<void> initAllPlayers() async {
   await Future.forEach(playerList.value, (Player instance) async {
-    if (!instance.isInitialized) {
-      await instance.initPlayer();
-      String display_name = instance.display_name;
-      // print("🟢 Player $display_name joined lobby.");
+    while (instance.isInitialized() == false)
+      await Future.delayed(Duration(milliseconds: 10));
 
-      playerList.notifyListeners();
-    }
+    String display_name = instance.getDisplayName();
+
+    playerList.notifyListeners();
   });
 }
 
@@ -129,11 +127,12 @@ Future<void> downloadTrackQueue() async {
 
   if (gameSnapshot.exists) {
     // Clear the locally stored song queue
-    queued_tracks.value.clear();
+    playlist.value.clear();
 
     // Parse the server data for the list of players
     Map<String, dynamic> gameData = gameSnapshot.data() as Map<String, dynamic>;
-    queued_tracks.value = gameData['queued_tracks'];
+
+    playlist.value = gameData['playlist'];
   } else {
     print('Document does not exist');
   }
@@ -156,7 +155,7 @@ Future<void> downloadPlayerList() async {
     players.forEach(
       (key, value) {
         Player newPlayer = Player(key);
-        newPlayer.score = value;
+        newPlayer.setScore(value);
         playerList.value.add(newPlayer);
       },
     );
@@ -179,8 +178,6 @@ Future<int> joinGame(String gameCode) async {
       // Add the local player to the session
       await gameRef.update({'players.$local_client_id': 0});
 
-      // print('Joined game with ID: $gameCode');
-
       // Now we need to update the local fields with the data fetched from the server
       server_id = gameCode;
       bLocalHost.value = await getHost(local_client_id);
@@ -202,8 +199,8 @@ void navigateToFinishPage() {
   int maxValue = 0;
 
   for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].score >= maxValue) {
-      maxValue = playerList.value[i].score;
+    if (playerList.value[i].getScore() >= maxValue) {
+      maxValue = playerList.value[i].getScore();
     }
   }
 
@@ -211,7 +208,8 @@ void navigateToFinishPage() {
 
   // if the local player has >= maximum score then they win
   if (playerList.value.any((element) =>
-      element.user_id == local_client_id && element.score == maxValue)) {
+      element.getUserID() == local_client_id &&
+      element.getScore() == maxValue)) {
     playerWon = true;
   }
 
@@ -220,12 +218,9 @@ void navigateToFinishPage() {
 }
 
 Future<void> handleScoring() async {
-  for (int i = 0; i < playerList.value.length; i++) {
-    if (playerList.value[i].user_id == local_client_id && correctGuess) {
-      // playerList.value[i].score += 10;
-      await firestoreService.Client_incrementScore(10);
-      await initAllPlayers();
-    }
+  if (correctGuess) {
+    await firestoreService.Client_incrementScore(10);
+    await initAllPlayers();
   }
 }
 
@@ -263,14 +258,14 @@ class FirestoreController {
 
   // Saved fields for update checking
   Map<String, dynamic> previousPlayerList = {};
-  Map<String, dynamic> previousTrackQueue = {};
+  List<Map<String, dynamic>> previousTrackQueue = [];
   int previousGameState = 0;
   int previousSongsPerPlayer = 3;
   String previousCurrentTrack = "";
 
   void ResetData() {
     previousPlayerList = {};
-    previousTrackQueue = {};
+    previousTrackQueue = [];
     previousGameState = 0;
     previousSongsPerPlayer = 3;
     previousCurrentTrack = "";
@@ -284,12 +279,10 @@ class FirestoreController {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
 
-    String playerId = playerInstance.user_id;
+    String playerId = playerInstance.getUserID();
 
     await gameRef
-        .update({'players.$playerId': FieldValue.delete()}).whenComplete(() {
-      print("player removed from map");
-    });
+        .update({'players.$playerId': FieldValue.delete()}).whenComplete(() {});
   }
 
   Future<void> Client_downloadCurrentTrack() async {
@@ -326,8 +319,6 @@ class FirestoreController {
           FirebaseFirestore.instance.collection('games').doc(server_id);
 
       await gameRef.update({'players.$local_client_id': previousScore + value});
-
-      print("new score: ${previousScore + value}");
     }
   }
 
@@ -342,7 +333,7 @@ class FirestoreController {
     _db.collection('games').doc(server_id).snapshots().listen((snapshot) {
       if (snapshot.exists) {
         Map<String, dynamic> currentTrackQueue =
-            snapshot.data()!['queued_tracks'] as Map<String, dynamic>;
+            snapshot.data()!['playlist'] as Map<String, dynamic>;
 
         List<MapEntry<String, dynamic>> entryList =
             currentTrackQueue.entries.toList();
@@ -353,7 +344,7 @@ class FirestoreController {
 
         DocumentReference gameRef =
             FirebaseFirestore.instance.collection('games').doc(server_id);
-        gameRef.update({'queued_tracks': shuffledTrackQueue});
+        gameRef.update({'playlist': shuffledTrackQueue});
 
         // print("Shuffled tracks: " + shuffledTrackQueue.toString());
       }
@@ -387,15 +378,14 @@ class FirestoreController {
 
         previousPlayerList = Map<String, dynamic>.from(currentPlayerList);
 
-        Map<String, dynamic> currentTrackQueue =
-            snapshot.data()!['queued_tracks'] as Map<String, dynamic>;
+        List<dynamic> currentTrackQueue = snapshot.data()!['playlist'];
 
-        if (mapEquals(previousTrackQueue, {}) ||
+        if (previousTrackQueue == [] ||
             _trackQueueHasChanged(currentTrackQueue)) {
           _onTrackQueueChange();
         }
 
-        previousTrackQueue = Map<String, dynamic>.from(currentTrackQueue);
+        previousTrackQueue = List<Map<String, dynamic>>.from(currentTrackQueue);
 
         int currentGameState = snapshot.data()!['game_state'];
 
@@ -416,8 +406,6 @@ class FirestoreController {
         String currentTrack = snapshot.data()!['current_track'];
 
         if (previousCurrentTrack != currentTrack) {
-          // print('track has changed');
-
           _onCurrentTrackChange(currentTrack);
         }
 
@@ -463,9 +451,8 @@ class FirestoreController {
     downloadTrackQueue();
   }
 
-  bool _trackQueueHasChanged(Map<String, dynamic> currentMap) {
-    return previousTrackQueue.isNotEmpty &&
-        !mapEquals(previousTrackQueue, currentMap);
+  bool _trackQueueHasChanged(List<dynamic> currentMap) {
+    return true;
   }
 
   bool _playerListHasChanged(Map<String, dynamic> currentMap) {
@@ -486,5 +473,18 @@ class FirestoreController {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
     await gameRef.update({'game_state': newState});
+  }
+
+  Future<void> Host_clearQueue() async {
+    DocumentReference gameRef =
+        FirebaseFirestore.instance.collection('games').doc(server_id);
+
+    DocumentSnapshot gameDoc = await gameRef.get();
+
+    if (gameDoc.exists) {
+      // Add the local player to the session
+      await gameRef.update({'playlist': []});
+      playlist.notifyListeners();
+    }
   }
 }

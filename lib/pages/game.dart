@@ -20,6 +20,7 @@ bool correctGuess = false;
 List<bool> buttonsPressed = [];
 
 String current_track = "";
+int queue_pos = 0;
 
 class GuessingPage extends StatefulWidget {
   GuessingPage({
@@ -39,17 +40,17 @@ class _GuessingPageState extends State<GuessingPage> {
   late int songLength;
 
   Timer? timer;
+  String new_song = "NULL";
 
   Future<void> getNewTrack() async {
-    // await playTrack(new_song);
-
     // wait for song change to be detected
     while (bSongChange == false) {
       await Future.delayed(Duration(milliseconds: 10)); // Check every 100ms
     }
 
+    await playTrack(current_track);
+
     await firestoreService.Client_downloadCurrentTrack();
-    // print("bSongChange: $current_track");
     bSongChange = false;
 
     var data = await getTrackInfo(current_track);
@@ -63,29 +64,47 @@ class _GuessingPageState extends State<GuessingPage> {
     setState(() {});
   }
 
+  void _handleButtonPressed(int index, String buttonName) {
+    buttonsPressed[index] = true;
+
+    if (buttonName == guiltyPlayer.getUserID()) {
+      correctGuess = true;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
     buttonsPressed = [];
+    correctGuess = false;
 
     for (int i = 0; i < playerList.value.length; i++) {
       buttonsPressed.add(false);
     }
 
-    String new_song = "NULL";
     if (bLocalHost.value == true) {
-      playbackQueue = [...queued_tracks.value.keys];
-      new_song = playbackQueue[0];
+      playbackQueue = [];
 
-      firestoreService.Host_setCurrentTrack(new_song);
+      for (int i = 0; i < playlist.value.length; i++) {
+        new_song = playlist.value[i].keys.first;
+        playbackQueue.add(new_song);
+      }
+
+      firestoreService.Host_setCurrentTrack(playbackQueue[queue_pos]);
     }
 
-    List<String> guilty_players = [...queued_tracks.value.values];
-    guiltyPlayer = playerList.value
-        .firstWhere((element) => guilty_players[0] == element.user_id);
-    queued_tracks.value.remove(new_song);
+    List<String> guilty_players = [];
 
+    for (int i = 0; i < playlist.value.length; i++) {
+      String guiltyName = playlist.value[i].values.first;
+      guilty_players.add(guiltyName);
+    }
+
+    guiltyPlayer = Player(playlist.value[queue_pos].values.first);
+    playlist.value.remove(new_song);
+
+    queue_pos++;
     getNewTrack();
   }
 
@@ -93,22 +112,6 @@ class _GuessingPageState extends State<GuessingPage> {
   void dispose() {
     timer?.cancel();
     super.dispose();
-  }
-
-  void _handleButtonPressed(int buttonIndex) {
-    setState(() {
-      for (int i = 0; i < buttonsPressed.length; i++) {
-        buttonsPressed[i] = false;
-      }
-
-      buttonsPressed[buttonIndex] = true;
-
-      if (buttonIndex == playerList.value.indexOf(guiltyPlayer)) {
-        correctGuess = true;
-      } else {
-        correctGuess = false;
-      }
-    });
   }
 
   Future<void> _handlePause() async {
@@ -128,112 +131,120 @@ class _GuessingPageState extends State<GuessingPage> {
   Widget build(BuildContext context) {
     if (_trackDataLoaded) {
       return Scaffold(
-          backgroundColor: const Color(0xFF8300e7),
-          body: Center(
-              child: Column(children: <Widget>[
-            Container(
-              alignment: Alignment.topCenter,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.1,
-                  ),
-                  const Text(
-                    'Who queued it?',
-                    style: TextStyle(
-                      fontSize: 28,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Container(
-                    child: Builder(
-                      builder: (context) {
-                        if (_trackDataLoaded) {
-                          return Column(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  albumArt,
-                                  height: 200,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                songName,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(songArtist,
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.normal)),
-                            ],
-                          );
-                        } else {
-                          return Container();
-                        }
-                      },
-                    ),
-                  ),
-                  Container(
-                    child: ListView.builder(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 45, vertical: 10),
-                      shrinkWrap: true,
-                      itemCount: playerList.value.length,
-                      itemBuilder: (context, index) {
-                        if (local_client_id ==
-                            playerList.value[index].user_id) {
-                          return Container();
-                        }
-                        return Container(
-                          padding: EdgeInsets.symmetric(vertical: 5),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _handleButtonPressed(index);
-                              });
-                            },
-                            child: Text(
-                              playerList.value[index].display_name,
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF8300e7),
+        body: Center(
+          child: Column(
+            children: [
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.1,
+              ),
+              const Text(
+                'Who queued it?',
+                style: TextStyle(
+                  fontSize: 28,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 15),
+              Container(
+                child: Builder(
+                  builder: (context) {
+                    if (_trackDataLoaded) {
+                      return Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              albumArt,
+                              height: 200,
                             ),
-                            style: ButtonStyle(
-                                minimumSize:
-                                    MaterialStateProperty.all(Size(200, 70)),
-                                shape: MaterialStateProperty.all<
-                                        RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10))),
-                                backgroundColor:
-                                    MaterialStateProperty.resolveWith<Color>(
-                                  (Set<MaterialState> states) {
-                                    if (buttonsPressed[index] == true) {
-                                      return Color(0xFF5e03a6);
-                                    } else {
-                                      return Color(0xFF7202ca);
-                                    }
-                                  },
-                                )),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  if (bLocalHost.value == true)
+                          const SizedBox(height: 2),
+                          Text(
+                            songName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            songArtist,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Container();
+                    }
+                  },
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: EdgeInsets.symmetric(horizontal: 45, vertical: 10),
+                  shrinkWrap: true,
+                  itemCount: playerList.value.length,
+                  itemBuilder: (context, index) {
+                    Player buttonPlayer = playerList.value[index];
+
+                    // Don't draw a button with the local player's name
+                    if (local_client_id == buttonPlayer.getUserID()) {
+                      return Container();
+                    }
+
+                    return Container(
+                      padding: EdgeInsets.symmetric(vertical: 5),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _handleButtonPressed(
+                                index, buttonPlayer.getUserID());
+                          });
+                        },
+                        child: Text(
+                          buttonPlayer.getDisplayName(),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ButtonStyle(
+                          minimumSize: MaterialStateProperty.all(Size(200, 70)),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          backgroundColor:
+                              MaterialStateProperty.resolveWith<Color>(
+                            (Set<MaterialState> states) {
+                              if (buttonsPressed[index] == true) {
+                                return Color(0xFF5e03a6);
+                              } else {
+                                return Color(0xFF7202ca);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Visibility(
+                visible: bLocalHost.value,
+                child: Column(
+                  children: [
                     Container(
-                      width: MediaQuery.of(context).size.width * 0.5,
+                      width: MediaQuery.of(context).size.width * 0.9,
                       height: MediaQuery.of(context).size.height * 0.07,
                       child: CupertinoButton(
                         padding: EdgeInsets.symmetric(horizontal: 10),
@@ -241,34 +252,37 @@ class _GuessingPageState extends State<GuessingPage> {
                           firestoreService.Host_SetGameState(3);
                         },
                         color: Colors.white,
-                        child: Container(
-                          child: Row(
-                            children: [
-                              Text(
-                                "Next Song",
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              SizedBox(
-                                width: 3,
-                              ),
-                              Icon(
-                                Icons.skip_next_rounded,
-                                size: 25,
+                        child: Row(
+                          children: [
+                            Text(
+                              "Next",
+                              style: TextStyle(
                                 color: Colors.black,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ],
-                            mainAxisAlignment: MainAxisAlignment.center,
-                          ),
+                            ),
+                            SizedBox(width: 3),
+                            Icon(
+                              Icons.skip_next_rounded,
+                              size: 30,
+                              color: Colors.black,
+                            ),
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.center,
                         ),
                       ),
-                    )
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ])));
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.08,
+              )
+            ],
+          ),
+        ),
+      );
     } else {
       return Scaffold(
         backgroundColor: spotifyPurple,
@@ -370,14 +384,14 @@ class _ResultPageState extends State<ResultPage> {
   void initState() {
     super.initState();
     isCorrect = widget.isCorrect;
-    correctChoice = widget.guiltyPlayer.display_name;
+    correctChoice = widget.guiltyPlayer.getDisplayName();
   }
 
   void _proceedToNextPage() {
     // only change the page if you're the host
     if (bLocalHost.value == false) return;
 
-    if (playbackQueue.length - 1 > 0) {
+    if (queue_pos < playbackQueue.length) {
       firestoreService.Host_SetGameState(2);
     } else {
       firestoreService.Host_SetGameState(4);
@@ -417,7 +431,7 @@ class _ResultPageState extends State<ResultPage> {
           ),
           const SizedBox(height: 20),
           ClipOval(
-              child: Image.network(widget.guiltyPlayer.image,
+              child: Image.network(widget.guiltyPlayer.getImageURL(),
                   width: 200, height: 200, fit: BoxFit.cover)),
           Text(correctChoice,
               style: TextStyle(
@@ -452,7 +466,7 @@ class _ResultPageState extends State<ResultPage> {
                   itemBuilder: (context, index) {
                     final playerInstance = playerList.value[index];
 
-                    if (playerInstance.isInitialized == false) {
+                    if (playerInstance.isInitialized() == false) {
                       return Container();
                     }
                     return Padding(
@@ -474,7 +488,7 @@ class _ResultPageState extends State<ResultPage> {
                 child: Column(
                   children: [
                     TimerBar(
-                      backgroundColor: Color.fromARGB(255, 131, 0, 0),
+                      backgroundColor: spotifyGrey,
                       progressColor: Colors.white,
                       period: Duration(seconds: 5),
                       onComplete: _proceedToNextPage,
@@ -563,7 +577,7 @@ class _FinishPageState extends State<FinishPage> {
                   itemBuilder: (context, index) {
                     final playerInstance = playerList.value[index];
 
-                    if (playerInstance.isInitialized == false) {
+                    if (playerInstance.isInitialized() == false) {
                       return Container();
                     }
                     return Padding(
@@ -579,11 +593,10 @@ class _FinishPageState extends State<FinishPage> {
               },
             ),
           ),
-          Expanded(
-            child: Container(
-              alignment: Alignment.bottomCenter,
-              padding: EdgeInsets.only(bottom: 50),
-              child: ElevatedButton(
+          Spacer(),
+          Container(
+            child: CupertinoButton(
+                color: Colors.white,
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -592,21 +605,15 @@ class _FinishPageState extends State<FinishPage> {
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    minimumSize: Size(150, 50) // Change button color to purple
-                    ),
-                child: const Text(
-                  'Continue',
+                child: Text(
+                  "Continue",
                   style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      fontFamily: 'Gotham'),
-                ),
-              ),
-            ),
+                      color: Colors.black, fontWeight: FontWeight.w500),
+                )),
           ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.08,
+          )
         ],
       )),
     );
@@ -633,54 +640,25 @@ class _EndPageState extends State<EndPage> {
 
   @override
   Widget build(BuildContext context) {
-    final String albumArt =
-        "https://marketplace.canva.com/EAEdeiU-IeI/1/0/1600w/canva-purple-and-red-orange-tumblr-aesthetic-chill-acoustic-classical-lo-fi-playlist-cover-jGlDSM71rNM.jpg";
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center, // Center content vertically
-        children: <Widget>[
-          Flexible(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: <Widget>[
-                  SizedBox(
-                    height: 250,
-                  ),
-                  const Text(
-                    "Save your game",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(
-                    height: 20,
-                  ),
-                  Container(
-                    height: 200,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset('assets/1024.png'),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  SavePlaylistButton(),
-                ],
-              ),
-            ),
+        backgroundColor: Colors.black,
+        body: Center(
+            child: Column(children: [
+          Spacer(),
+          const Text(
+            "Save your game",
+            style: TextStyle(
+                color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
-// Add some space between the content and the button
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  bottom: 50), // Adjust this value as needed
-              child: ElevatedButton(
+          SizedBox(
+            height: 20,
+          ),
+          SavePlaylistButton(),
+          Spacer(),
+          Container(
+            child: CupertinoButton(
+                color: Colors.white,
                 onPressed: () {
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -692,24 +670,16 @@ class _EndPageState extends State<EndPage> {
                     (Route<dynamic> route) => false,
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: spotifyGreen,
-                    minimumSize: Size(70, 50) // Change button color to purple
-                    ),
-                child: const Text(
-                  'Continue',
+                child: Text(
+                  "Return to Lobby",
                   style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      fontFamily: 'Gotham'),
-                ),
-              ),
-            ),
+                      color: Colors.black, fontWeight: FontWeight.w500),
+                )),
           ),
-        ],
-      ),
-    );
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.08,
+          ),
+        ])));
   }
 }
 
@@ -777,7 +747,7 @@ class _SavePlaylistButtonState extends State<SavePlaylistButton> {
                       widget.onTap!();
                     }
 
-                    createPlaylist("Queue Quandary");
+                    createPlaylist("Playlist Pursuit");
                   },
                   child: Container(
                     key: ValueKey<bool>(_isChecked),

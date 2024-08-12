@@ -39,9 +39,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Gotham'),
+      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Roboto'),
       home: HomePage(),
       navigatorKey: navigatorKey,
     );
+  }
+}
+
+// Utility class to check equality of two maps
+class MapEquality {
+  bool equals(Map<String, dynamic> map1, Map<String, dynamic> map2) {
+    if (map1.length != map2.length) return false;
+    return map1.entries.every((entry) =>
+        map2.containsKey(entry.key) && map2[entry.key] == entry.value);
   }
 }

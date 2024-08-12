@@ -13,10 +13,17 @@ class Track {
   late String name = "";
   late String artist = "";
   late int duration_ms = 0;
+  bool _isInitialized = false;
 
-  Track(this.track_id);
+  Track(this.track_id) {
+    _fetchData();
+  }
 
-  Future<void> fetchTrackData() async {
+  bool isInitialized() {
+    return _isInitialized;
+  }
+
+  Future<void> _fetchData() async {
     final String url = 'https://api.spotify.com/v1/tracks/$track_id';
 
     final response = await http.get(
@@ -33,6 +40,8 @@ class Track {
       imageUrl = data['album']['images'][0]['url'];
       track_uri = data['uri'];
       duration_ms = data['duration_ms'];
+
+      _isInitialized = true;
     } else {
       throw Exception('Failed to load track');
     }
@@ -40,36 +49,63 @@ class Track {
 }
 
 class Player {
-  final String user_id;
-  late String display_name;
-  late String image;
-  bool isInitialized;
-  int score = 0;
+  final String _user_id;
+  late String _display_name;
+  late String _image;
+  bool _isInitialized = false;
+  int _score = 0;
 
-  Player(this.user_id, {this.isInitialized = false});
+  Player(this._user_id) {
+    // on creation, grab the data from Spotify
+    _fetchData();
+  }
+
+  int getScore() {
+    return _score;
+  }
+
+  void setScore(int value) {
+    _score = value;
+  }
+
+  bool isInitialized() {
+    return _isInitialized;
+  }
+
+  String getDisplayName() {
+    return _display_name;
+  }
+
+  String getUserID() {
+    return _user_id;
+  }
+
+  String getImageURL() {
+    return _image;
+  }
+
+  Future<void> _fetchData() async {
+    await ensureTokenIsValid();
+
+    _display_name = await _getDisplayName();
+    _image = await _getUserPicture();
+
+    // once these fields are populated we can say this is initialized
+    _isInitialized = true;
+  }
 
   @override
   String toString() {
-    if (this.isInitialized)
-      return "Name: $display_name, Score: $score";
-    else
-      return "uninitialized";
+    if (_isInitialized) return "Name: $_display_name, Score: $_score";
+
+    return "<unknown-player>";
   }
 
-  Future<void> initPlayer() async {
-    await ensureTokenIsValid();
-
-    display_name = await getDisplayName(user_id);
-    image = await getUserPicture();
-
-    isInitialized = true;
-  }
-
-  Future<String> getUserPicture() async {
+  Future<String> _getUserPicture() async {
     await ensureTokenIsValid();
 
     final response = await http.get(
-      Uri.parse('https://api.spotify.com/v1/users/$user_id'),
+      Uri.parse('https://api.spotify.com/v1/users/$_user_id'),
       headers: {
         'Authorization': 'Bearer $myToken',
       },
@@ -78,19 +114,19 @@ class Player {
     var responseData = json.decode(response.body);
     return responseData['images'][0]['url'];
   }
-}
 
-Future<String> getDisplayName(String user_id) async {
-  await ensureTokenIsValid();
+  Future<String> _getDisplayName() async {
+    await ensureTokenIsValid();
 
-  final response = await http.get(
-    Uri.parse('https://api.spotify.com/v1/users/$user_id'),
-    headers: {
-      'Authorization': 'Bearer $myToken',
-    },
-  );
+    final response = await http.get(
+      Uri.parse('https://api.spotify.com/v1/users/$_user_id'),
+      headers: {
+        'Authorization': 'Bearer $myToken',
+      },
+    );
 
-  return json.decode(response.body)['display_name'];
+    return json.decode(response.body)['display_name'];
+  }
 }
 
 Future<void> pausePlayback() async {
@@ -115,8 +151,6 @@ Future<void> pausePlayback() async {
       },
     );
   }
-
-  print("Paused playback");
 }
 
 Future<void> resumePlayback() async {
@@ -407,14 +441,18 @@ Future<void> createPlaylist(String playlistName) async {
 
     // Add tracks to the newly created playlist
     await addTracksToPlaylist(playlistId);
-
-    print('Playlist created successfully.');
   } else {
     throw Exception('Failed to create playlist: ${response.reasonPhrase}');
   }
 }
 
 Future<void> addTracksToPlaylist(String playlistId) async {
+  List<String> song_uris = [];
+
+  for (int i = 0; i < playlist.value.length; i++) {
+    song_uris.add('spotify:track:${playlist.value[i].keys.first}');
+  }
+
   final response = await http.post(
     Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
     headers: {
@@ -422,8 +460,7 @@ Future<void> addTracksToPlaylist(String playlistId) async {
       'Content-Type': 'application/json',
     },
     body: json.encode({
-      'uris':
-          queued_tracks.value.keys.map((id) => 'spotify:track:$id').toList(),
+      'uris': song_uris,
     }),
   );
 }

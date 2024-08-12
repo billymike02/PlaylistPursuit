@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:queue_quandry/pages/home.dart';
@@ -17,7 +18,7 @@ import 'package:queue_quandry/multiplayer.dart';
 // Define a GlobalKey<NavigatorState>
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-int songsPerPlayer = 3;
+int songsPerPlayer = 1;
 List<String> playbackQueue = [];
 int local_songsQueued = 0;
 
@@ -141,14 +142,14 @@ class _LobbyPageState extends State<LobbyPage> {
                           },
                           padding: EdgeInsets.symmetric(
                               horizontal: 10, vertical: 15),
-                          color: spotifyGreen,
+                          color: CupertinoColors.activeGreen,
                           child: Container(
                             child: Row(
                               children: [
                                 Text(
                                   "Invite",
                                   style: TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 18,
                                       fontWeight: FontWeight.w500),
                                 ),
@@ -158,7 +159,7 @@ class _LobbyPageState extends State<LobbyPage> {
                                 Icon(
                                   Icons.ios_share_outlined,
                                   size: 20,
-                                  color: Colors.white,
+                                  color: Colors.black,
                                 ),
                               ],
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -236,7 +237,7 @@ class _LobbyPageState extends State<LobbyPage> {
                       itemBuilder: (context, index) {
                         final playerInstance = playerList.value[index];
 
-                        if (playerInstance.isInitialized == false) {
+                        if (playerInstance.isInitialized() == false) {
                           return Container();
                         }
                         return Padding(
@@ -268,15 +269,11 @@ class _LobbyPageState extends State<LobbyPage> {
                         if (playerList.value.length > 0 &&
                             bLocalHost.value == true) {
                           return Center(
-                              child: Container(
-                            width: MediaQuery.of(context).size.width * 0.5,
                             child: CupertinoButton(
-                                color: CupertinoColors.activeBlue,
+                                color: CupertinoColors.systemIndigo,
                                 onPressed: () {
                                   _setQueueingState();
                                 },
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 32, vertical: 16),
                                 child: const Row(
                                   children: [
                                     Text(
@@ -291,21 +288,19 @@ class _LobbyPageState extends State<LobbyPage> {
                                       width: 5,
                                     ),
                                     Icon(
-                                      Icons.gamepad_rounded,
+                                      Icons.play_arrow_rounded,
                                       color: Colors.white,
                                       size: 30,
                                     ),
                                   ],
                                   mainAxisAlignment: MainAxisAlignment.center,
                                 )),
-                          ));
+                          );
                         }
 
                         return Container();
                       }),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.05,
-                  )
+                  SizedBox(height: 65),
                 ]),
           ])),
     );
@@ -374,8 +369,8 @@ class _BottomSheetSliderState extends State<BottomSheetSlider> {
                   // The maximum slider value
                   max: 10,
                   min: 1,
-                  activeColor: spotifyGreen,
-                  thumbColor: spotifyGreen,
+                  activeColor: CupertinoColors.activeGreen,
+                  thumbColor: CupertinoColors.activeGreen,
                   // This is called when sliding is started.
                   // This is called when slider value is changed.
                   onChanged: (double value) {
@@ -467,8 +462,11 @@ class _QueuePageState extends State<QueuePage> {
   void initState() {
     super.initState();
 
+    queue_pos = 0;
     playbackQueue = [];
     local_songsQueued = 0;
+    firestoreService.Host_clearQueue();
+
     _fetchTopSongsFuture = fetchTopSongs();
 
     _getHostingStatus();
@@ -623,73 +621,88 @@ class _QueuePageState extends State<QueuePage> {
             SizedBox(
               height: 10,
             ),
-            ValueListenableBuilder<Map<String, dynamic>>(
-                valueListenable: queued_tracks,
+            ValueListenableBuilder<List<dynamic>>(
+                valueListenable: playlist,
                 builder: (context, value, child) {
                   return Builder(builder: (BuildContext context) {
-                    bool _enableButton = true; // true jsut for debug
-
-                    if (widget.songsPerPlayer - queued_tracks.value.length <=
-                        0) {
-                      _enableButton = true;
-                    }
-
-                    if (_enableButton && bLocalHost.value == true) {
+                    if (bLocalHost.value == true) {
                       int start_requirment =
                           playerList.value.length * songsPerPlayer;
 
-                      // if (songQueue.value.length >= start_requirment) {
+                      if (playlist.value.length >= start_requirment) {
+                        return Center(
+                          child: CupertinoButton(
+                              color: CupertinoColors.activeBlue,
+                              onPressed: () async {
+                                if (await getPlaybackState() != true) {
+                                  showConnectionError();
 
-                      return Center(
-                          child: Container(
-                        width: MediaQuery.of(context).size.width * 0.6,
-                        child: CupertinoButton(
-                            color: spotifyPurple,
-                            onPressed: () async {
-                              if (await getPlaybackState() != true) {
-                                showConnectionError();
+                                  return;
+                                }
 
-                                return;
-                              }
+                                if (bLocalHost.value == true) {
+                                  // await firestoreService
+                                  //     .Host_ShufflePlaybackOrder();
+                                  await firestoreService.Host_SetGameState(2);
+                                }
+                              },
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 16),
+                              child: const Row(
+                                children: [
+                                  Text(
+                                    'Start Match',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 20,
+                                        fontFamily: 'Gotham'),
+                                  ),
+                                  SizedBox(
+                                    width: 5,
+                                  ),
+                                  Icon(
+                                    Icons.gamepad_rounded,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ],
+                                mainAxisAlignment: MainAxisAlignment.center,
+                              )),
+                        );
+                      } else if (local_songsQueued < songsPerPlayer) {
+                        int remainingSongs =
+                            widget.songsPerPlayer - local_songsQueued;
 
-                              if (bLocalHost.value == true) {
-                                // await firestoreService
-                                //     .Host_ShufflePlaybackOrder();
-                                await firestoreService.Host_SetGameState(2);
-                              }
-                            },
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 16),
-                            child: const Row(
-                              children: [
-                                Text(
-                                  'Start Game',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 20,
-                                      fontFamily: 'Gotham'),
-                                ),
-                                Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 40,
-                                ),
-                              ],
-                              mainAxisAlignment: MainAxisAlignment.center,
-                            )),
-                      ));
-                      // } else {
-                      //   return Center(
-                      //       child: Text(
-                      //     "Waiting for other players.",
-                      //     style: TextStyle(
-                      //       color: Colors.white,
-                      //       fontSize: 20,
-                      //       fontWeight: FontWeight.bold,
-                      //     ),
-                      //   ));
-                      // }
+                        String message = "";
+
+                        if (remainingSongs > 0)
+                          message = "Add " +
+                              remainingSongs.toString() +
+                              " more songs";
+                        else
+                          message = "Waiting for host.";
+
+                        return Center(
+                            child: Text(
+                          message,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ));
+                      } else {
+                        return Center(
+                            child: Text(
+                          "Waiting for other players.",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ));
+                      }
                     } else {
                       int remainingSongs =
                           widget.songsPerPlayer - local_songsQueued;
@@ -714,7 +727,7 @@ class _QueuePageState extends State<QueuePage> {
                     }
                   });
                 }),
-            SizedBox(height: 40),
+            SizedBox(height: 45),
           ],
         ),
       ),
@@ -764,7 +777,7 @@ class _SongListingState extends State<SongListing> {
   void initState() {
     super.initState();
 
-    if (queued_tracks.value.entries.contains(widget.track.track_id)) {
+    if (playlist.value.any((map) => map.containsKey(widget.track.track_id))) {
       isChecked.value = true;
     }
   }
@@ -773,22 +786,66 @@ class _SongListingState extends State<SongListing> {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
-    await gameRef
-        .update({'queued_tracks.${widget.track.track_id}': local_client_id});
+    // Fetch the current data from the document
+    DocumentSnapshot docSnapshot = await gameRef.get();
+
+    if (docSnapshot.exists) {
+      // Get the current list
+      List<dynamic> currentList =
+          List<dynamic>.from(docSnapshot.get('playlist') ?? []);
+
+      // Add the new entry to the list
+      currentList.add({widget.track.track_id: local_client_id});
+
+      // Update the document with the new list
+      await gameRef.update({'playlist': currentList});
+      playlist.notifyListeners();
+    } else {
+      // Handle the case where the document does not exist
+      print("Document does not exist.");
+    }
   }
 
   Future<void> _firestoreRemoveSong() async {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(widget.gameCode);
 
-    await gameRef.update(
-        {'queued_tracks.${widget.track.track_id}': FieldValue.delete()});
+    // Fetch the current data from the document
+    DocumentSnapshot docSnapshot = await gameRef.get();
+
+    if (docSnapshot.exists) {
+      // Get the current list
+      List<dynamic> currentList =
+          List<dynamic>.from(docSnapshot.get('playlist') ?? []);
+
+      // Remove the map from the list using custom equality check
+      currentList.removeWhere((item) {
+        if (item is Map<String, dynamic>) {
+          // Check if the map matches the map to remove
+          return MapEquality()
+              .equals(item, {widget.track.track_id: local_client_id});
+        }
+        return false;
+      });
+
+      // Update the document with the new list
+      await gameRef.update({'playlist': currentList});
+      playlist.notifyListeners();
+    } else {
+      // Handle the case where the document does not exist
+      print("Document does not exist.");
+    }
+  }
+
+  Future<void> _awaitTrackLoad() async {
+    while (widget.track.isInitialized() == false)
+      await Future.delayed(Duration(milliseconds: 10));
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
-      future: widget.track.fetchTrackData(),
+      future: _awaitTrackLoad(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container();
@@ -925,11 +982,11 @@ class _PlayerListingState extends State<PlayerListing> {
   /// Enables the option to kick a player if you're the host and the player is not yourself.
   Future<void> _setKicking() async {
     // if the user is remote and the local user is the host then able kicking
-    if (widget.playerInstance.user_id != local_client_id &&
+    if (widget.playerInstance.getUserID() != local_client_id &&
         await getHost(local_client_id)) {
       enableKicking = true;
       bHost = false;
-    } else if (await getHost(widget.playerInstance.user_id)) {
+    } else if (await getHost(widget.playerInstance.getUserID())) {
       bHost = true;
     }
 
@@ -956,7 +1013,7 @@ class _PlayerListingState extends State<PlayerListing> {
         children: [
           ClipOval(
             child: Image.network(
-              widget.playerInstance.image,
+              widget.playerInstance.getImageURL(),
               width: 35,
               height: 35,
               fit: BoxFit.cover,
@@ -965,7 +1022,7 @@ class _PlayerListingState extends State<PlayerListing> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              widget.playerInstance.display_name,
+              widget.playerInstance.getDisplayName(),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -975,8 +1032,11 @@ class _PlayerListingState extends State<PlayerListing> {
           ),
           if (widget.showScore == true)
             Text(
-              widget.playerInstance.score.toString(),
-              style: TextStyle(color: Colors.white, fontSize: 20),
+              widget.playerInstance.getScore().toString(),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600),
             )
           else if (bHost == true)
             GestureDetector(
@@ -1008,7 +1068,7 @@ class _PlayerListingState extends State<PlayerListing> {
                     return CupertinoAlertDialog(
                       title: Text("Confirm"),
                       content: Text(
-                          "Are you sure you want to kick ${widget.playerInstance.display_name} from the lobby?"),
+                          "Are you sure you want to kick ${widget.playerInstance.getDisplayName()} from the lobby?"),
                       actions: [
                         CupertinoDialogAction(
                           child: Text(
@@ -1045,7 +1105,7 @@ class _PlayerListingState extends State<PlayerListing> {
                 ),
                 child: Icon(
                   Icons.remove_circle_outline_rounded,
-                  color: Colors.white,
+                  color: CupertinoColors.destructiveRed,
                   size: 30,
                 ),
               ),
