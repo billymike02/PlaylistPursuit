@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
-                                fontWeight: FontWeight.normal,
+                                fontWeight: FontWeight.w500,
                                 letterSpacing: 1.5,
                               ),
                             ),
@@ -151,7 +151,7 @@ class _HomePageState extends State<HomePage> {
                               style: TextStyle(
                                 color: Colors.black,
                                 fontSize: 18,
-                                fontWeight: FontWeight.normal,
+                                fontWeight: FontWeight.w500,
                                 letterSpacing: 1.5,
                               ),
                             ),

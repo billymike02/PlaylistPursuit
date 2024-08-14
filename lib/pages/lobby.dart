@@ -18,7 +18,7 @@ import 'package:queue_quandry/multiplayer.dart';
 // Define a GlobalKey<NavigatorState>
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-int songsPerPlayer = 2;
+int songsPerPlayer = 5;
 List<String> playbackQueue = [];
 int local_songsQueued = 0;
 
@@ -106,9 +106,25 @@ class _LobbyPageState extends State<LobbyPage> {
             color: Colors.white,
           ),
           onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
+            Navigator.of(context).pushAndRemoveUntil(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    HomePage(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  // Define the transition
+                  const begin = Offset(-1.0, 0.0); // Start from left
+                  const end = Offset.zero; // End at current position
+                  const curve = Curves.easeInOut; // Smooth transition
+
+                  var tween = Tween<Offset>(begin: begin, end: end);
+                  var offsetAnimation =
+                      animation.drive(tween.chain(CurveTween(curve: curve)));
+
+                  return SlideTransition(
+                      position: offsetAnimation, child: child);
+                },
+              ),
               (Route<dynamic> route) => false,
             );
           },
@@ -266,11 +282,11 @@ class _LobbyPageState extends State<LobbyPage> {
                   ValueListenableBuilder<List<Player>>(
                       valueListenable: playerList,
                       builder: (context, value, child) {
-                        if (playerList.value.length > 0 &&
+                        if (playerList.value.length > 1 &&
                             bLocalHost.value == true) {
                           return Center(
                             child: CupertinoButton(
-                                color: CupertinoColors.systemIndigo,
+                                color: spotifyPurple,
                                 onPressed: () {
                                   _setQueueingState();
                                 },
@@ -478,274 +494,285 @@ class _QueuePageState extends State<QueuePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: spotifyBlack,
-        title: const Text(
-          'Add Some Songs',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
-      backgroundColor: spotifyBlack,
-      body: Container(
-        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 25),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            TextField(
-              controller: _controller,
+    return PopScope(
+        canPop: false,
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            backgroundColor: spotifyBlack,
+            title: const Text(
+              'Add Some Songs',
               style:
-                  TextStyle(color: Colors.black, fontWeight: FontWeight.w400),
-              onChanged: (value) {
-                setState(() {
-                  isSearching = value.isNotEmpty;
-                });
-                String searchTerm = value;
-                _search(searchTerm);
-              },
-              decoration: const InputDecoration(
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 12, horizontal: 0),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(10.0),
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+          backgroundColor: spotifyBlack,
+          body: Container(
+            padding: EdgeInsets.symmetric(vertical: 20, horizontal: 25),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                TextField(
+                  controller: _controller,
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.w400),
+                  onChanged: (value) {
+                    setState(() {
+                      isSearching = value.isNotEmpty;
+                    });
+                    String searchTerm = value;
+                    _search(searchTerm);
+                  },
+                  decoration: const InputDecoration(
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 12, horizontal: 0),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(10.0),
+                      ),
+                    ),
+                    hintText: 'What do you want to listen to?',
+                    hintStyle: TextStyle(color: Colors.black),
+                    fillColor: Colors.white,
+                    filled: true,
+                    prefixIcon: Icon(Icons.search),
                   ),
                 ),
-                hintText: 'What do you want to listen to?',
-                hintStyle: TextStyle(color: Colors.black),
-                fillColor: Colors.white,
-                filled: true,
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
-            const SizedBox(height: 30),
-            isSearching
-                ? const Padding(
-                    padding: EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      "Search results",
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
+                const SizedBox(height: 30),
+                isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          "Search results",
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          "Your top songs",
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                : const Padding(
-                    padding: EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      "Your top songs",
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-            isSearching
-                ? Expanded(
-                    child: FutureBuilder(
-                        future: _searchedSongs,
-                        builder:
-                            (context, AsyncSnapshot<List<String>> snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return Align(
-                              alignment: Alignment.topCenter,
-                              child: Text(
-                                'Loading...',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                            );
-                          } else if (snapshot.hasError) {
-                            return Center(child: Text('Error searching query'));
-                          } else {
-                            return ListView.builder(
-                                itemCount: 5,
-                                itemBuilder: (BuildContext context, int index) {
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 8),
-                                    child: SongListing(
-                                      gameCode: widget.gameCode,
-                                      track: Track(snapshot.data![index]),
-                                    ),
-                                  );
-                                });
-                          }
-                        }))
-                : Expanded(
-                    child: FutureBuilder(
-                      future: _fetchTopSongsFuture,
-                      builder: (context, AsyncSnapshot<List<String>> snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Align(
-                            alignment: Alignment.topCenter,
-                            child: Text(
-                              'Loading tracks...',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          );
-                        } else {
-                          if (snapshot.hasError) {
-                            return Center(
-                                child: Text('Error fetching top songs'));
-                          } else {
-                            return ListView.builder(
-                              itemCount: snapshot.data!.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                return Padding(
-                                  padding: EdgeInsets.only(bottom: 8),
-                                  child: SongListing(
-                                    gameCode: widget.gameCode,
-                                    track: Track(snapshot.data![index]),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ),
-            SizedBox(
-              height: 10,
-            ),
-            ValueListenableBuilder<List<dynamic>>(
-                valueListenable: playlist,
-                builder: (context, value, child) {
-                  return Builder(builder: (BuildContext context) {
-                    if (bLocalHost.value == true) {
-                      int start_requirment =
-                          playerList.value.length * songsPerPlayer;
-
-                      if (playlist.value.length >= start_requirment) {
-                        return Center(
-                          child: CupertinoButton(
-                              color: CupertinoColors.activeBlue,
-                              onPressed: () async {
-                                if (await getPlaybackState() != true) {
-                                  showConnectionError();
-
-                                  return;
-                                }
-
-                                if (bLocalHost.value == true) {
-                                  // await firestoreService
-                                  //     .Host_ShufflePlaybackOrder();
-
-                                  List<String> track_ids = [];
-
-                                  for (int i = 0;
-                                      i < playlist.value.length;
-                                      i++) {
-                                    track_ids.add(
-                                        "spotify:track:${playlist.value[i].keys.first}");
-                                  }
-
-                                  await playAllTracks(track_ids);
-
-                                  await firestoreService.Host_setCurrentTrack(
-                                      playlist.value[0].keys.first);
-                                  await firestoreService.Host_SetGameState(2);
-                                }
-                              },
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 16),
-                              child: const Row(
-                                children: [
-                                  Text(
-                                    'Start Match',
+                isSearching
+                    ? Expanded(
+                        child: FutureBuilder(
+                            future: _searchedSongs,
+                            builder: (context,
+                                AsyncSnapshot<List<String>> snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Text(
+                                    'Loading...',
                                     style: TextStyle(
                                         color: Colors.white,
-                                        fontWeight: FontWeight.w700,
                                         fontSize: 20,
-                                        fontFamily: 'Gotham'),
+                                        fontWeight: FontWeight.w500),
                                   ),
-                                  SizedBox(
-                                    width: 5,
-                                  ),
-                                  Icon(
-                                    Icons.gamepad_rounded,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                ],
-                                mainAxisAlignment: MainAxisAlignment.center,
-                              )),
-                        );
-                      } else if (local_songsQueued < songsPerPlayer) {
-                        int remainingSongs =
-                            widget.songsPerPlayer - local_songsQueued;
-
-                        String message = "";
-
-                        if (remainingSongs > 0)
-                          message = "Add " +
-                              remainingSongs.toString() +
-                              " more songs";
-                        else
-                          message = "Waiting for host.";
-
-                        return Center(
-                            child: Text(
-                          message,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ));
-                      } else {
-                        return Center(
-                            child: Text(
-                          "Waiting for other players.",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ));
-                      }
-                    } else {
-                      int remainingSongs =
-                          widget.songsPerPlayer - local_songsQueued;
-
-                      String message = "";
-
-                      if (remainingSongs > 0)
-                        message =
-                            "Add " + remainingSongs.toString() + " more songs";
-                      else
-                        message = "Waiting for host.";
-
-                      return Center(
-                          child: Text(
-                        message,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                                );
+                              } else if (snapshot.hasError) {
+                                return Center(
+                                    child: Text('Error searching query'));
+                              } else {
+                                return ListView.builder(
+                                    itemCount: 5,
+                                    itemBuilder:
+                                        (BuildContext context, int index) {
+                                      return Padding(
+                                        padding: EdgeInsets.only(bottom: 8),
+                                        child: SongListing(
+                                          gameCode: widget.gameCode,
+                                          track: Track(snapshot.data![index]),
+                                        ),
+                                      );
+                                    });
+                              }
+                            }))
+                    : Expanded(
+                        child: FutureBuilder(
+                          future: _fetchTopSongsFuture,
+                          builder:
+                              (context, AsyncSnapshot<List<String>> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Align(
+                                alignment: Alignment.topCenter,
+                                child: Text(
+                                  'Loading tracks...',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              );
+                            } else {
+                              if (snapshot.hasError) {
+                                return Center(
+                                    child: Text('Error fetching top songs'));
+                              } else {
+                                return ListView.builder(
+                                  itemCount: snapshot.data!.length,
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
+                                    return Padding(
+                                      padding: EdgeInsets.only(bottom: 8),
+                                      child: SongListing(
+                                        gameCode: widget.gameCode,
+                                        track: Track(snapshot.data![index]),
+                                      ),
+                                    );
+                                  },
+                                );
+                              }
+                            }
+                          },
                         ),
-                      ));
-                    }
-                  });
-                }),
-            SizedBox(height: 45),
-          ],
-        ),
-      ),
-    );
+                      ),
+                SizedBox(
+                  height: 10,
+                ),
+                ValueListenableBuilder<List<dynamic>>(
+                    valueListenable: playlist,
+                    builder: (context, value, child) {
+                      return Builder(builder: (BuildContext context) {
+                        if (bLocalHost.value == true) {
+                          int start_requirment =
+                              playerList.value.length * songsPerPlayer;
+
+                          if (playlist.value.length >= start_requirment) {
+                            return Center(
+                              child: CupertinoButton(
+                                  color: CupertinoColors.activeBlue,
+                                  onPressed: () async {
+                                    if (await getPlaybackState() != true) {
+                                      showConnectionError();
+
+                                      return;
+                                    }
+
+                                    if (bLocalHost.value == true) {
+                                      // await firestoreService
+                                      //     .Host_ShufflePlaybackOrder();
+
+                                      List<String> track_ids = [];
+
+                                      for (int i = 0;
+                                          i < playlist.value.length;
+                                          i++) {
+                                        track_ids.add(
+                                            "spotify:track:${playlist.value[i].keys.first}");
+                                      }
+
+                                      await playAllTracks(track_ids);
+
+                                      await firestoreService
+                                          .Host_setCurrentTrack(
+                                              playlist.value[0].keys.first);
+                                      await firestoreService.Host_SetGameState(
+                                          2);
+                                    }
+                                  },
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
+                                  child: const Row(
+                                    children: [
+                                      Text(
+                                        'Start Match',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 20,
+                                            fontFamily: 'Gotham'),
+                                      ),
+                                      SizedBox(
+                                        width: 5,
+                                      ),
+                                      Icon(
+                                        Icons.gamepad_rounded,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                                    ],
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  )),
+                            );
+                          } else if (local_songsQueued < songsPerPlayer) {
+                            int remainingSongs =
+                                widget.songsPerPlayer - local_songsQueued;
+
+                            String message = "";
+
+                            if (remainingSongs > 0)
+                              message = "Add " +
+                                  remainingSongs.toString() +
+                                  " more songs";
+                            else
+                              message = "Waiting for host.";
+
+                            return Center(
+                                child: Text(
+                              message,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ));
+                          } else {
+                            return Center(
+                                child: Text(
+                              "Waiting for other players.",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ));
+                          }
+                        } else {
+                          int remainingSongs =
+                              widget.songsPerPlayer - local_songsQueued;
+
+                          String message = "";
+
+                          if (remainingSongs > 0)
+                            message = "Add " +
+                                remainingSongs.toString() +
+                                " more songs";
+                          else
+                            message = "Waiting for host.";
+
+                          return Center(
+                              child: Text(
+                            message,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ));
+                        }
+                      });
+                    }),
+                SizedBox(height: 45),
+              ],
+            ),
+          ),
+        ));
   }
 
   void showConnectionError() {

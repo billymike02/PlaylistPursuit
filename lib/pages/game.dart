@@ -127,123 +127,129 @@ class _GuessingPageState extends State<GuessingPage> {
   @override
   Widget build(BuildContext context) {
     if (_trackDataLoaded) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF8300e7),
-        body: Center(
-          child: Column(
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.1,
-              ),
-              const Text(
-                'Who queued it?',
-                style: TextStyle(
-                  fontSize: 28,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                child: Builder(
-                  builder: (context) {
-                    if (_trackDataLoaded) {
-                      return Column(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              albumArt,
-                              height: 200,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            songName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            songArtist,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      );
-                    } else {
-                      return Container();
-                    }
-                  },
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: 45, vertical: 10),
-                  shrinkWrap: true,
-                  itemCount: playerList.value.length,
-                  itemBuilder: (context, index) {
-                    Player buttonPlayer = playerList.value[index];
+      return PopScope(
+          canPop: false,
+          child: Scaffold(
+            backgroundColor: const Color(0xFF8300e7),
+            body: Center(
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.1,
+                  ),
+                  const Text(
+                    'Who queued it?',
+                    style: TextStyle(
+                      fontSize: 28,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Container(
+                    child: Builder(
+                      builder: (context) {
+                        if (_trackDataLoaded) {
+                          return Column(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  albumArt,
+                                  height: 200,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                songName,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                songArtist,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Container();
+                        }
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 45, vertical: 10),
+                      shrinkWrap: true,
+                      itemCount: playerList.value.length,
+                      itemBuilder: (context, index) {
+                        Player buttonPlayer = playerList.value[index];
 
-                    // Don't draw a button with the local player's name
-                    if (local_client_id == buttonPlayer.getUserID()) {
-                      return Container();
-                    }
+                        // Don't draw a button with the local player's name
+                        if (local_client_id == buttonPlayer.getUserID()) {
+                          return Container();
+                        }
 
-                    return Container(
-                      padding: EdgeInsets.symmetric(vertical: 5),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _handleButtonPressed(
-                                index, buttonPlayer.getUserID());
-                          });
-                        },
-                        child: Text(
-                          buttonPlayer.getDisplayName(),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ButtonStyle(
-                          minimumSize: MaterialStateProperty.all(Size(200, 70)),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          backgroundColor:
-                              MaterialStateProperty.resolveWith<Color>(
-                            (Set<MaterialState> states) {
-                              if (buttonsPressed[index] == true) {
-                                return Color(0xFF5e03a6);
-                              } else {
-                                return Color(0xFF7202ca);
-                              }
+                        return Container(
+                          padding: EdgeInsets.symmetric(vertical: 5),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _handleButtonPressed(
+                                    index, buttonPlayer.getUserID());
+                              });
                             },
+                            child: Text(
+                              buttonPlayer.getDisplayName(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ButtonStyle(
+                              minimumSize:
+                                  MaterialStateProperty.all(Size(200, 70)),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              backgroundColor:
+                                  MaterialStateProperty.resolveWith<Color>(
+                                (Set<MaterialState> states) {
+                                  if (buttonsPressed[index] == true) {
+                                    return Color(0xFF5e03a6);
+                                  } else {
+                                    return Color(0xFF7202ca);
+                                  }
+                                },
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      );
+            ),
+          ));
     } else {
-      return Scaffold(
-        backgroundColor: spotifyPurple,
-      );
+      return PopScope(
+          canPop: false,
+          child: Scaffold(
+            backgroundColor: spotifyPurple,
+          ));
     }
   }
 }
@@ -369,95 +375,98 @@ class _ResultPageState extends State<ResultPage> {
     else
       myBoxColor = const Color(0xFF096129);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Center(
-          child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: <Widget>[
-          const SizedBox(
-            height: 80,
-          ),
-          Text(
-            playStatus,
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ClipOval(
-              child: Image.network(widget.guiltyPlayer.getImageURL(),
-                  width: 200, height: 200, fit: BoxFit.cover)),
-          Text(correctChoice,
-              style: TextStyle(
+    return PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          body: Center(
+              child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(
+                height: 80,
+              ),
+              Text(
+                playStatus,
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold)),
-          SizedBox(height: 30),
-          Text('Current Scores',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700)),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.30,
-            width: MediaQuery.of(context).size.width * 0.9,
-            child: ValueListenableBuilder<List<Player>>(
-              valueListenable: playerList,
-              builder: (context, value, child) {
-                if (value.length < 1) {
-                  return Text(
-                    'Loading players...',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500),
-                  );
-                }
-
-                return ListView.builder(
-                  key: UniqueKey(),
-                  itemCount: value.length,
-                  itemBuilder: (context, index) {
-                    final playerInstance = playerList.value[index];
-
-                    if (playerInstance.isInitialized() == false) {
-                      return Container();
+                ),
+              ),
+              const SizedBox(height: 20),
+              ClipOval(
+                  child: Image.network(widget.guiltyPlayer.getImageURL(),
+                      width: 200, height: 200, fit: BoxFit.cover)),
+              Text(correctChoice,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold)),
+              SizedBox(height: 30),
+              Text('Current Scores',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700)),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.30,
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: ValueListenableBuilder<List<Player>>(
+                  valueListenable: playerList,
+                  builder: (context, value, child) {
+                    if (value.length < 1) {
+                      return Text(
+                        'Loading players...',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500),
+                      );
                     }
-                    return Padding(
-                      padding: EdgeInsets.only(top: 6, bottom: 6),
-                      child: PlayerListing(
-                        color: boxColor,
-                        playerInstance: playerInstance,
-                        showScore: true,
-                      ),
+
+                    return ListView.builder(
+                      key: UniqueKey(),
+                      itemCount: value.length,
+                      itemBuilder: (context, index) {
+                        final playerInstance = playerList.value[index];
+
+                        if (playerInstance.isInitialized() == false) {
+                          return Container();
+                        }
+                        return Padding(
+                          padding: EdgeInsets.only(top: 6, bottom: 6),
+                          child: PlayerListing(
+                            color: boxColor,
+                            playerInstance: playerInstance,
+                            showScore: true,
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: Container(
-                alignment: Alignment.bottomCenter,
-                child: Column(
-                  children: [
-                    TimerBar(
-                      backgroundColor: spotifyGrey,
-                      progressColor: Colors.white,
-                      period: Duration(seconds: 5),
-                      onComplete: _proceedToNextPage,
-                    ),
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.1)
-                  ],
-                  mainAxisAlignment: MainAxisAlignment.end,
-                )),
-          )
-        ],
-      )),
-    );
+                ),
+              ),
+              Expanded(
+                child: Container(
+                    alignment: Alignment.bottomCenter,
+                    child: Column(
+                      children: [
+                        TimerBar(
+                          backgroundColor: spotifyGrey,
+                          progressColor: Colors.white,
+                          period: Duration(seconds: 5),
+                          onComplete: _proceedToNextPage,
+                        ),
+                        SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.1)
+                      ],
+                      mainAxisAlignment: MainAxisAlignment.end,
+                    )),
+              )
+            ],
+          )),
+        ));
   }
 }
 
@@ -489,91 +498,93 @@ class _FinishPageState extends State<FinishPage> {
     else
       myBoxColor = const Color(0xFF096129);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Center(
-          child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: <Widget>[
-          const SizedBox(
-            height: 80,
-          ),
-          Text(
-            playStatus,
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 150),
-          Text('Final Scores',
-              style: TextStyle(
+    return PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          body: Center(
+              child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(
+                height: 80,
+              ),
+              Text(
+                playStatus,
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700)),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.30,
-            width: MediaQuery.of(context).size.width * 0.9,
-            child: ValueListenableBuilder<List<Player>>(
-              valueListenable: playerList,
-              builder: (context, value, child) {
-                if (value.length < 1) {
-                  return Text(
-                    'Loading players...',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500),
-                  );
-                }
-
-                return ListView.builder(
-                  key: UniqueKey(),
-                  itemCount: value.length,
-                  itemBuilder: (context, index) {
-                    final playerInstance = playerList.value[index];
-
-                    if (playerInstance.isInitialized() == false) {
-                      return Container();
+                ),
+              ),
+              SizedBox(height: 150),
+              Text('Final Scores',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700)),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.30,
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: ValueListenableBuilder<List<Player>>(
+                  valueListenable: playerList,
+                  builder: (context, value, child) {
+                    if (value.length < 1) {
+                      return Text(
+                        'Loading players...',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500),
+                      );
                     }
-                    return Padding(
-                      padding: EdgeInsets.only(top: 6, bottom: 6),
-                      child: PlayerListing(
-                        color: boxColor,
-                        playerInstance: playerInstance,
-                        showScore: true,
-                      ),
+
+                    return ListView.builder(
+                      key: UniqueKey(),
+                      itemCount: value.length,
+                      itemBuilder: (context, index) {
+                        final playerInstance = playerList.value[index];
+
+                        if (playerInstance.isInitialized() == false) {
+                          return Container();
+                        }
+                        return Padding(
+                          padding: EdgeInsets.only(top: 6, bottom: 6),
+                          child: PlayerListing(
+                            color: boxColor,
+                            playerInstance: playerInstance,
+                            showScore: true,
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          Spacer(),
-          Container(
-            child: CupertinoButton(
-                color: Colors.white,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EndPage(),
-                    ),
-                  );
-                },
-                child: Text(
-                  "Continue",
-                  style: TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.w500),
-                )),
-          ),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.08,
-          )
-        ],
-      )),
-    );
+                ),
+              ),
+              Spacer(),
+              Container(
+                child: CupertinoButton(
+                    color: Colors.white,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EndPage(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      "Continue",
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.w500),
+                    )),
+              ),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.08,
+              )
+            ],
+          )),
+        ));
   }
 }
 
@@ -597,46 +608,50 @@ class _EndPageState extends State<EndPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-            child: Column(children: [
-          Spacer(),
-          const Text(
-            "Save your game",
-            style: TextStyle(
-                color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(
-            height: 20,
-          ),
-          SavePlaylistButton(),
-          Spacer(),
-          Container(
-            child: CupertinoButton(
-                color: Colors.white,
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => LobbyPage(
-                              gameCode: server_id,
-                              init: false,
-                            )),
-                    (Route<dynamic> route) => false,
-                  );
-                },
-                child: Text(
-                  "Return to Lobby",
-                  style: TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.w500),
-                )),
-          ),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.08,
-          ),
-        ])));
+    return PopScope(
+        canPop: false,
+        child: Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+                child: Column(children: [
+              Spacer(),
+              const Text(
+                "Save your game",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(
+                height: 20,
+              ),
+              SavePlaylistButton(),
+              Spacer(),
+              Container(
+                child: CupertinoButton(
+                    color: Colors.white,
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => LobbyPage(
+                                  gameCode: server_id,
+                                  init: false,
+                                )),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: Text(
+                      "Return to Lobby",
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.w500),
+                    )),
+              ),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.08,
+              ),
+            ]))));
   }
 }
 
