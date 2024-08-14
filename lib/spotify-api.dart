@@ -164,25 +164,23 @@ Future<void> resumePlayback() async {
   );
 }
 
-Future<void> addToQueue(String? trackUri, String? accessToken) async {
+Future<void> addToQueue(String trackUri) async {
   await ensureTokenIsValid();
 
-  final url =
-      Uri.parse('https://api.spotify.com/v1/me/player/queue?uri=$trackUri');
+  trackUri = "spotify:track:" + trackUri;
 
   final response = await http.post(
-    url,
+    Uri.parse('https://api.spotify.com/v1/me/player/queue'),
     headers: {
+      'Authorization': 'Bearer $myToken',
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
     },
+    body: json.encode({'uri': trackUri}),
   );
 
-  if (response.statusCode == 204) {
-    // print('Track added to queue successfully');
-  } else {
-    print(
-        'Failed to add track to queue: ${response.statusCode}, ${response.body}');
+  if (response.statusCode != 204) {
+    // Handle error
+    print('Error adding to queue: ${response.body}');
   }
 }
 
@@ -244,7 +242,7 @@ Future<List<String>> getTopTracks(String? accessToken) async {
   }
 }
 
-Future<Map<String, dynamic>> getCurrentTrack() async {
+Future<String?> getCurrentTrack() async {
   await ensureTokenIsValid();
 
   final response = await http.get(
@@ -254,9 +252,31 @@ Future<Map<String, dynamic>> getCurrentTrack() async {
     },
   );
 
+  try {
+    var body = json.decode(response.body);
+
+    // make sure to return just the uri part
+    String temp = body['item']['uri'];
+    return temp.split(':').last;
+  } catch (e) {
+    return null;
+  }
+}
+
+Future<int> getTrackProgress() async {
+  await ensureTokenIsValid();
+
+  final response = await http.get(
+    Uri.parse('https://api.spotify.com/v1/me/player'),
+    headers: {
+      'Authorization': 'Bearer $myToken',
+    },
+  );
+
   var body = json.decode(response.body);
-  print(body['item']['uri']);
-  return body['item']['uri'];
+
+  print(body['progress_ms']);
+  return body['progress_ms'];
 }
 
 Future<bool> isPlaying() async {
@@ -270,6 +290,7 @@ Future<bool> isPlaying() async {
   );
 
   var body = json.decode(response.body);
+
   return body['is_playing'];
 }
 
@@ -366,11 +387,10 @@ Future<String?> getActiveDevice() async {
   }
 }
 
-Future<int> playTrack(String track_id) async {
+Future<int> playAllTracks(List<String> track_ids) async {
   await ensureTokenIsValid();
 
   String? deviceId = await getActiveDevice();
-  String track_uri = "spotify:track:" + track_id;
 
   final response = await http.put(
     Uri.parse('https://api.spotify.com/v1/me/player/play'),
@@ -380,7 +400,7 @@ Future<int> playTrack(String track_id) async {
     },
     body: json.encode({
       'device_id': deviceId,
-      'uris': [track_uri],
+      'uris': track_ids,
     }),
   );
 

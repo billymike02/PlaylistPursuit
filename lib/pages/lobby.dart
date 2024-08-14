@@ -18,7 +18,7 @@ import 'package:queue_quandry/multiplayer.dart';
 // Define a GlobalKey<NavigatorState>
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-int songsPerPlayer = 1;
+int songsPerPlayer = 2;
 List<String> playbackQueue = [];
 int local_songsQueued = 0;
 
@@ -643,6 +643,20 @@ class _QueuePageState extends State<QueuePage> {
                                 if (bLocalHost.value == true) {
                                   // await firestoreService
                                   //     .Host_ShufflePlaybackOrder();
+
+                                  List<String> track_ids = [];
+
+                                  for (int i = 0;
+                                      i < playlist.value.length;
+                                      i++) {
+                                    track_ids.add(
+                                        "spotify:track:${playlist.value[i].keys.first}");
+                                  }
+
+                                  await playAllTracks(track_ids);
+
+                                  await firestoreService.Host_setCurrentTrack(
+                                      playlist.value[0].keys.first);
                                   await firestoreService.Host_SetGameState(2);
                                 }
                               },

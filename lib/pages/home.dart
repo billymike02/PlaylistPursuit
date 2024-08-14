@@ -297,6 +297,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _attemptJoinGame(String code) async {
+    if (code == "") return;
+
     int result = await joinGame(code);
 
     // If the connection fails, inform the user.

@@ -48,8 +48,6 @@ class _GuessingPageState extends State<GuessingPage> {
       await Future.delayed(Duration(milliseconds: 10)); // Check every 100ms
     }
 
-    await playTrack(current_track);
-
     await firestoreService.Client_downloadCurrentTrack();
     bSongChange = false;
 
@@ -62,6 +60,8 @@ class _GuessingPageState extends State<GuessingPage> {
 
     _trackDataLoaded = true;
     setState(() {});
+
+    await firestoreService.Host_listenForNextTrack();
   }
 
   void _handleButtonPressed(int index, String buttonName) {
@@ -75,7 +75,6 @@ class _GuessingPageState extends State<GuessingPage> {
   @override
   void initState() {
     super.initState();
-
     buttonsPressed = [];
     correctGuess = false;
 
@@ -90,8 +89,6 @@ class _GuessingPageState extends State<GuessingPage> {
         new_song = playlist.value[i].keys.first;
         playbackQueue.add(new_song);
       }
-
-      firestoreService.Host_setCurrentTrack(playbackQueue[queue_pos]);
     }
 
     List<String> guilty_players = [];
@@ -239,46 +236,6 @@ class _GuessingPageState extends State<GuessingPage> {
                   },
                 ),
               ),
-              Visibility(
-                visible: bLocalHost.value,
-                child: Column(
-                  children: [
-                    Container(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      height: MediaQuery.of(context).size.height * 0.07,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        onPressed: () async {
-                          firestoreService.Host_SetGameState(3);
-                        },
-                        color: Colors.white,
-                        child: Row(
-                          children: [
-                            Text(
-                              "Next",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(width: 3),
-                            Icon(
-                              Icons.skip_next_rounded,
-                              size: 30,
-                              color: Colors.black,
-                            ),
-                          ],
-                          mainAxisAlignment: MainAxisAlignment.center,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.08,
-              )
             ],
           ),
         ),

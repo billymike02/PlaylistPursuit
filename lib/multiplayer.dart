@@ -322,11 +322,32 @@ class FirestoreController {
     }
   }
 
-  Future<void> Host_setCurrentTrack(String track_uri) async {
+  Future<void> Host_listenForNextTrack() async {
+    String? this_track;
+
+    while (true) {
+      await Future.delayed(Duration(seconds: 2));
+      this_track = await getCurrentTrack();
+
+      // Ignore null values and continue the loop if the track is null
+      if (this_track == null) continue;
+
+      // Break if the track is different from the previous one
+      if (this_track != previousCurrentTrack) break;
+    }
+
+    // At this point, we have a new track that is not null, so update the current track
+    if (this_track != null) {
+      await Host_setCurrentTrack(this_track);
+      await Host_SetGameState(3);
+    }
+  }
+
+  Future<void> Host_setCurrentTrack(String song_uri) async {
     DocumentReference gameRef =
         FirebaseFirestore.instance.collection('games').doc(server_id);
 
-    await gameRef.update({'current_track': track_uri});
+    await gameRef.update({'current_track': song_uri});
   }
 
   Future<void> Host_ShufflePlaybackOrder() async {
@@ -421,7 +442,7 @@ class FirestoreController {
     await gameRef.update({'songs_per_player': newNum});
   }
 
-  void _onCurrentTrackChange(String newUri) {
+  Future<void> _onCurrentTrackChange(String newUri) async {
     current_track = newUri;
     bSongChange = true;
   }
