@@ -1,16 +1,34 @@
-# queue_quandry
+# Playlist Pursuit
 
-A new Flutter project.
+**Playlist Pursuit** is a multiplayer game built with Flutter and Firebase for iOS and Android. Players anonymously contribute to a music queue and guess the tracks played, using the Spotify API to enhance the experience.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- **Multiplayer Gameplay:** Play with friends or other users.
+- **Anonymous Play:** Contribute to a music queue without revealing your identity.
+- **Spotify Integration:** Utilize Spotify’s music library.
+- **Real-time Updates:** Firebase for live game updates.
+- **Cross-Platform:** Available on iOS and Android.
 
-A few resources to get you started if this is your first Flutter project:
+## Images
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+**Authenticate with Spotify:** Login to gain access to your music library.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<img src="demo_images/Simulator Screenshot - iPhone 15 - 2024-08-15 at 10.45.35.png" width="300"/>
+
+<br>
+
+**Simple Online Multiplayer:** Lobby system allows for easy multiplayer gameplay.
+
+<br>
+<img src="demo_images/Simulator Screenshot - iPhone 15 - 2024-08-15 at 10.46.05.png" width="300"/>
+<br>
+
+**Familiar UI:** User-interface is designed to appear familiar and feel approachable.
+
+<br>
+<img src="demo_images/Simulator Screenshot - iPhone 15 - 2024-08-15 at 10.46.37.png" width="300"/>
+<br>
+
+<img src="demo_images/Simulator Screenshot - iPhone 15 - 2024-08-15 at 10.47.06.png" width="300"/>
+<img src="demo_images/Simulator Screenshot - iPhone 15 - 2024-08-15 at 10.47.15.png" width="300"/>

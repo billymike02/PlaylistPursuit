@@ -12,7 +12,7 @@ import 'package:queue_quandry/styles.dart';
 import 'dart:convert';
 import 'package:queue_quandry/multiplayer.dart';
 
-final int winningScore = 10;
+final int winningScore = 1000;
 bool musicPlaying = true;
 late Player guiltyPlayer;
 // Local fields
